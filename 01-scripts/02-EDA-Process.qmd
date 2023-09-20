@@ -1,0 +1,146 @@
+---
+title: "NYC Trip Exploratory Data Analysis"
+format: gfm
+---
+
+To perform this EDA I will:
+
+- Validate if the data has missing values
+- Understanding the distribution of each variable
+- Create new features base on domain knowledge
+- Confirm assumptions
+
+## Setting-up the enviroment
+
+1. Loading main packages
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(scales)
+library(lubridate)
+library(rsample)
+theme_set(theme_light())
+
+source("01-scripts/02-Fixed-Values.R")
+
+```
+
+2. Importing data the **10 GB** training set.
+
+```{r}
+TripDataTrain <- fst::read_fst(
+  "00-data/TripDataTrain.fst",
+  as.data.table = TRUE
+)
+
+dim(TripDataTrain) |> comma()
+
+ZoneTable <- fread("00-data/taxi+_zone_lookup.csv")
+```
+
+## Missig values validation
+
+Only `originating_base_num` and `on_scene_datetime`
+
+```{r}
+TripDataTrain[, lapply(.SD, \(x) sum(is.na(x)))
+][, id := 1L
+][, melt(.SD,
+         id.vars = "id",
+         variable.factor = FALSE,
+         value.name = "n_miss")
+][order(-n_miss), 
+  !c("id")
+][n_miss>0
+][, pct_miss := n_miss/nrow(TripDataTrain)*100]
+```
+
+```{r}
+TripDataTrain[, .SD, 
+              .SDcols = \(x) is.numeric(x)| is.POSIXct(x)] |>
+  cor()
+
+TripDataTrain[, lapply(.SD, mean), 
+              by = .(is_miss = is.na(on_scene_datetime)),
+              .SDcols = \(x) is.numeric(x)| is.POSIXct(x)]
+
+TripDataTrain[, names(.SD), 
+              .SDcols = \(x) !(is.numeric(x) | is.POSIXct(x))]
+```
+
+
+
+
+## Understanding the distribution of each variable
+
+1. **hvfhs_license_num:** Must of the trips are Uber related.
+
+```{r}
+TripDataTrain[, .N, 
+              by = .(hvfhs_license_num = TaxiCompanyName[hvfhs_license_num])] |>
+  ggplot(aes(N, hvfhs_license_num))+
+  geom_col(aes(fill = hvfhs_license_num),
+           width = 0.65)+
+  scale_x_continuous(labels = comma_format(accuracy = 1))+
+  scale_fill_brewer(palette = "Dark2")+
+  labs(title = "Number of Trips by Company",
+       y = "Company",
+       x = "Trip Count")+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "none",
+        panel.grid.major.y = element_blank())
+```
+
+
+2. **dispatching_base_num:** Doesn't provide much information in relation in relation to the `hvfhs_license_num`.
+
+```{r}
+TripDataTrain[, .N, 
+              by = .(company = TaxiCompanyName[hvfhs_license_num],
+                     dispatching_base_num)
+][order(company,-N)
+][, prop_N := percent(N/sum(N), accuracy = 0.01),
+  by = "company"][]
+```
+
+3. **originating_base_num:** Doesn't provide much information in relation to `dispatching_base_num`.
+
+```{r}
+TripDataTrain[, .N, 
+              by = .(same_base = dispatching_base_num == originating_base_num,
+                     missing_dispatching_base_num = is.na(dispatching_base_num),
+                     missing_originating_base_num = is.na(originating_base_num))
+][, prop_N := percent(N/sum(N), accuracy = 0.01)][]
+
+```
+
+
+```{r}
+TripDataTrain[, .N, 
+              by = .(company = TaxiCompanyName[hvfhs_license_num],
+                     originating_base_num)
+  ][order(company,-N)
+  ][, prop_N := percent(N/sum(N), accuracy = 0.01),
+    by = "company"][]
+```
+
+
+3. **Pickup_datetime by month:**
+
+```{r}
+TripDataTrain[, .N,
+              by = .(month = floor_date(request_datetime, unit = "day"))] |>
+  ggplot(aes(month, N))+
+  geom_line()
+```
+
+
+
+## Creating new features
+
+```{r}
+
+```
+
+
