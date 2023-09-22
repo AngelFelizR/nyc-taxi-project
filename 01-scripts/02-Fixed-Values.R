@@ -1,9 +1,0 @@
-
-# Based on data dictionary we that
-
-TaxiCompanyName <- c(
-  "HV0002" = "Juno",
-  "HV0003" = "Uber",
-  "HV0004" = "Via",
-  "HV0005" = "Lyft"
-)

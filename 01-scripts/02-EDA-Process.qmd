@@ -1,12 +1,15 @@
 ---
-title: "NYC Trip Exploratory Data Analysis"
+title: "NYC Trip - Exploratory Data Analysis"
 format: gfm
 ---
 
+Even thought the main purpose of this project is to predict the tips that taxi drivers received from passenger is important to have general understanding of the data to **avoid ending with wrong conclusions**.
+
 To perform this EDA I will:
 
+- **Understanding the distribution of each variable:** That will give a reference of the normality.
+
 - Validate if the data has missing values
-- Understanding the distribution of each variable
 - Create new features base on domain knowledge
 - Confirm assumptions
 
@@ -16,30 +19,159 @@ To perform this EDA I will:
 
 ```{r}
 library(data.table)
+library(lubridate)
+library(timeDate)
 library(ggplot2)
 library(scales)
-library(lubridate)
-library(rsample)
+library(patchwork)
 theme_set(theme_light())
 
-source("01-scripts/02-Fixed-Values.R")
-
+source("01-scripts/02-custom-functions.R")
 ```
 
-2. Importing data the **10 GB** training set.
+2. Importing from data from January to March as our training data with **56,853,541 rows** as our training corresponding to **10 Gb**.
 
 ```{r}
 TripDataTrain <- fst::read_fst(
-  "00-data/TripDataTrain.fst",
+  path = "00-data/TripDataTrain.fst",
   as.data.table = TRUE
 )
 
-dim(TripDataTrain) |> comma()
 
-ZoneTable <- fread("00-data/taxi+_zone_lookup.csv")
+TripDataTrain[, report_month := NULL]
+
+TripDataDim <- dim(TripDataTrain)
+comma(TripDataDim)
+object.size(TripDataTrain) |> format(unit = "auto")
 ```
 
+3. Down sampling the data to **17,000,000 rows** to solve memory limitations problems, but keeping a representative sample of the population.
+
+```{r}
+set.seed(20230922)
+TripDataTrain <- TripDataTrain[sample.int(TripDataDim[1L],17e6)]
+
+TripDataDim <- dim(TripDataTrain)
+comma(TripDataDim)
+object.size(TripDataTrain) |> format(unit = "auto")
+```
+
+3. Decoding data based on dictionary information.
+
+```{r}
+TripDataTrain <- decode_cols(
+  trip_table = TripDataTrain,
+  zone_path = "00-data/taxi+_zone_lookup.csv"
+)
+```
+
+## Validating the distribution of each variable
+
+### Categorical variables
+
+By counting the rows by category for each row we found that:
+
+- We can **remove** the `dispatching_base_num` and `originating_base_num` as theirs information is really close to the `hvfhs_license_num` and their other values only represent **0.02%** of the rows.
+- Based on `shared_request_flag` and `shared_match_flag` we know that must of the passengers **agree to shared the ride** even if other passenger booked separately.
+- Based on `access_a_ride_flag` we know that must of the **trips were administered by MTA**. We also could that the field is missing the "Y" flag.
+- Based on `wav_request_flag` and `wav_match_flag` we know that only **0.16%** of trips requested a wheelchair-accessible vehicle but **6.84%** of trips had that capacity with are really good news.
+- In the `PU_Borough` and `DO_Borough`columns very few trips pass through "Staten Island", "Unknown" or "EWR" so we will consolidate them as "Other".
+- `PU_Zone` and `DO_Zone` have too many categories and we don't need them for this process.
+- As "EWR" represent the **Newark Liberty International Airport** and represent very few trips, we can consolidate this category to the must general one "Airports" for the `PU_service_zone` and `DO_service_zone` columns
+
+```{r}
+cat_vars <- TripDataTrain[, names(.SD), .SDcols = is.character]
+
+for(cat_i in cat_vars){
+  TripDataTrain[, .(count = .N), 
+                by = cat_i
+  ][, pct_count := round(count/sum(count)*100, 2)
+  ][order(-count)] |>
+  print()
+}
+
+```
+
+### Numerical variables
+
+To validate numeric variables we are potting at normal and logarithmic scale.
+
+```{r}
+num_vars <- TripDataTrain[, names(.SD), .SDcols = is.numeric]
+
+for(num_i in num_vars){
+  
+ print(custom_histogram(TripDataTrain, num_i))
+
+}
+
+```
+
+
+### Date variables
+
+To validate numeric variables we are potting at normal and logarithmic scale.
+
+```{r}
+date_vars <- TripDataTrain[, names(.SD), .SDcols = is.POSIXct]
+
+for(date_i in date_vars){
+  
+  date_hist <-
+    ggplot(TripDataTrain, aes(get(date_i)))+
+    geom_histogram(fill = "blue",
+                   color = "black",
+                   alpha = 0.8,
+                   bins = 30)+
+    labs(title = paste0(date_i, " Distribution"),
+         x = date_i)
+  
+  print(date_hist)
+}
+
+```
+
+
 ## Missig values validation
+
+```{r}
+ggplot(TripDataTrain, aes(trip_miles, trip_time))+
+  geom_point(alpha = 0.25)
+
+TripDataTrain[trip_miles <= 0, 
+              ..num_vars
+][, id := .I
+][, melt(.SD,
+         id.vars = "id",
+         variable.factor = FALSE)
+][, .(min_value = min(value),
+      max_value = max(value)),
+  by = "variable"]
+
+TripDataTrain[trip_time <= 0, 
+              ..num_vars
+][, id := .I
+][, melt(.SD,
+         id.vars = "id",
+         variable.factor = FALSE)
+][, .(min_value = min(value),
+      max_value = max(value)),
+  by = "variable"]
+
+TripDataTrain[driver_pay <= 0, 
+              ..num_vars
+][, id := .I
+][, melt(.SD,
+         id.vars = "id",
+         variable.factor = FALSE)
+][, .(min_value = min(value),
+      max_value = max(value)),
+  by = "variable"]
+
+TripDataTrain[driver_pay < 0, View(.SD)]
+
+```
+
 
 Only `originating_base_num` and `on_scene_datetime`
 
@@ -53,23 +185,8 @@ TripDataTrain[, lapply(.SD, \(x) sum(is.na(x)))
 ][order(-n_miss), 
   !c("id")
 ][n_miss>0
-][, pct_miss := n_miss/nrow(TripDataTrain)*100]
+][, pct_miss := n_miss/nrow(TripDataTrain)*100][]
 ```
-
-```{r}
-TripDataTrain[, .SD, 
-              .SDcols = \(x) is.numeric(x)| is.POSIXct(x)] |>
-  cor()
-
-TripDataTrain[, lapply(.SD, mean), 
-              by = .(is_miss = is.na(on_scene_datetime)),
-              .SDcols = \(x) is.numeric(x)| is.POSIXct(x)]
-
-TripDataTrain[, names(.SD), 
-              .SDcols = \(x) !(is.numeric(x) | is.POSIXct(x))]
-```
-
-
 
 
 ## Understanding the distribution of each variable
