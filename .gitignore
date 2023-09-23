@@ -7,6 +7,7 @@
 # Data files weight too much
 00-data/*.parquet
 00-data/*.fst
+00-data/*.csv
 
 # Temp until updating mine
-README.md
+/README.md

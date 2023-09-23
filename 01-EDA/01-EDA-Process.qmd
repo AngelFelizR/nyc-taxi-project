@@ -25,16 +25,17 @@ library(timeDate)
 library(ggplot2)
 library(scales)
 library(patchwork)
+library(here)
 theme_set(theme_light())
 
-source("../01-EDA/00-custom-functions.R")
+source(here("01-EDA/00-custom-functions.R"))
 ```
 
 2. Importing from data from January to March as our training data with **56,853,541 rows** as our training corresponding to **10 Gb**.
 
 ```{r}
 TripDataTrain <- fst::read_fst(
-  path = "../00-data/TripDataTrain.fst",
+  path = here("00-data/TripDataTrain.fst"),
   as.data.table = TRUE
 )
 
@@ -57,7 +58,7 @@ comma(TripDataDim)
 ```{r}
 TripDataTrain <- decode_cols(
   trip_table = TripDataTrain,
-  zone_path = "../00-data/taxi_zone_lookup.csv"
+  zone_path = here("00-data/taxi_zone_lookup.csv")
 )
 ```
 
