@@ -4,9 +4,12 @@ if(!"renv" %in% installed.packages()[, 1L]) install.packages("renv")
 renv::restore()
 
 # 2. Scraping document's links from official website ----
+SourcePage <-
+  rvest::read_html("https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page")
+
 ParquetLinks <-
-  rvest::read_html("https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page") |>
-  rvest::html_elements(xpath = '//div[@class="faq-answers"]//li/a') |>
+  rvest::html_elements(SourcePage,
+                       xpath = '//div[@class="faq-answers"]//li/a') |>
   rvest::html_attr("href") |>
   grep(pattern = "fhvhv_[a-z]+_2023-\\d{2}\\.parquet", value = TRUE) |>
   trimws()
@@ -25,15 +28,18 @@ options(timeout = 800)
 
 for(link_i in seq_along(ParquetLinks)){
   download.file(ParquetLinks[link_i],
-                LocalPath[link_i],
+                destfile = LocalPath[link_i],
                 mode = "wb")
 }
 
 
 # 5. Downloading zone file ----
-download.file("https://d37ci6vzurychx.cloudfront.net/misc/taxi+_zone_lookup.csv",
-              "00-data/taxi_zone_lookup.csv",
-              mode = "wb")
+SourcePage |>
+  rvest::html_elements(xpath = '//ul/li/a[text()="Taxi Zone Lookup Table"]')  |>
+  rvest::html_attr("href") |>
+  trimws() |>
+  download.file(destfile = "00-data/taxi_zone_lookup.csv",
+                mode = "wb")
 
 
 # 6. Splitting training and test data
