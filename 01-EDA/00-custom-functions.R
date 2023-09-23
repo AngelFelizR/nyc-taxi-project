@@ -128,31 +128,33 @@ add_date_features <- function(DT,
   DT[, `.date` := get(date_name)]
 
   # Calculate dates for holidays that are not on fixed dates
-  mlk_day <- timeNthNdayInMonth(paste0(year,"-01-01"), nday = 1L, nth = 3L) |> as.character()
-  presidents_day <- timeNthNdayInMonth(paste0(year,"-02-01"), nday = 1L, nth = 3L) |> as.character()
-  mothers_day <- timeNthNdayInMonth(paste0(year,"-05-01"), nday = 0L, nth = 2L) |> as.character()
-  fathers_day <- timeNthNdayInMonth(paste0(year,"-06-01"), nday = 0L, nth = 3L) |> as.character()
-  thanksgiving <- timeNthNdayInMonth(paste0(year,"-11-01"), nday = 4L, nth = 4L) |> as.character()
+  mlk_day <- timeDate::timeNthNdayInMonth(paste0(year,"-01-01"), nday = 1L, nth = 3L) |> as.Date()
+  presidents_day <- timeDate::timeNthNdayInMonth(paste0(year,"-02-01"), nday = 1L, nth = 3L) |> as.Date()
+  mothers_day <- timeDate::timeNthNdayInMonth(paste0(year,"-05-01"), nday = 0L, nth = 2L) |> as.Date()
+  fathers_day <- timeDate::timeNthNdayInMonth(paste0(year,"-06-01"), nday = 0L, nth = 3L) |> as.Date()
+  thanksgiving <- timeDate::timeNthNdayInMonth(paste0(year,"-11-01"), nday = 4L, nth = 4L) |> as.Date()
 
   # Define NYC holidays
-  holidays <- as.Date(c("New Year" = paste(year,"-01-01",sep=""),
-                        "Day After New Year’s Day" = paste(year,"-01-02",sep=""),
-                        "Martin Luther King Jr. Day" = mlk_day,
-                        "Lincoln's Birthday Observed" = paste(year,"-02-12",sep=""),
-                        "Lincoln's Birthday" = paste(year,"-02-13",sep=""),
-                        "Presidents' Day" = presidents_day,
-                        "Mother's Day" = mothers_day,
-                        "Memorial Day" = paste(year,"-05-29",sep=""),
-                        "Father's Day" = fathers_day,
-                        "Juneteenth" = paste(year,"-06-19",sep=""),
-                        "Independence Day" = paste(year,"-07-04",sep=""),
-                        "Labor Day" = paste(year,"-09-04",sep=""),
-                        "Columbus Day" = paste(year,"-10-09",sep=""),
-                        "Election Day" = paste(year,"-11-07",sep=""),
-                        "Veterans Day Observed" = paste(year,"-11-10",sep=""),
-                        "Veterans Day" = paste(year,"-11-11",sep=""),
-                        "Thanksgiving Day" = thanksgiving,
-                        "Christmas Day" = paste(year,"-12-25",sep="")))
+  holidays <- c(
+    "New Year" = make_date(year, 1L, 1L),
+    "Day After New Year’s Day" = make_date(year, 1L, 2L),
+    "Martin Luther King Jr. Day" = mlk_day,
+    "Lincoln's Birthday Observed" = make_date(year, 2L, 12L),
+    "Lincoln's Birthday" = make_date(year, 2L, 13L),
+    "Presidents' Day" = presidents_day,
+    "Mother's Day" = mothers_day,
+    "Memorial Day" = make_date(year, 5L, 29L),
+    "Father's Day" = fathers_day,
+    "Juneteenth" = make_date(year, 6L, 19L),
+    "Independence Day" = make_date(year, 7L, 4L),
+    "Labor Day" = make_date(year, 9L, 4L),
+    "Columbus Day" = make_date(year, 10L, 9L),
+    "Election Day" = make_date(year, 11L, 7L),
+    "Veterans Day Observed" = make_date(year, 11L, 10L),
+    "Veterans Day" = make_date(year, 11L, 11L),
+    "Thanksgiving Day" = thanksgiving,
+    "Christmas Day" = make_date(year, 12L, 25L)
+  )
 
   DT[, `:=`(
     # Time-based features

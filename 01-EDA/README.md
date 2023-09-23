@@ -1,59 +1,41 @@
 # NYC Trip - Exploratory Data Analysis
 
-Even thought the main purpose of this project is to predict the tips
-that taxi drivers received from passenger is important to have general
-understanding of the data to **avoid ending with wrong conclusions**.
+## Description
 
-To perform this EDA I will:
+Although the primary objective of this project is to **predict the
+tips** that taxi drivers receive from passengers, it’s crucial to have a
+comprehensive understanding of the data to **avoid drawing incorrect
+conclusions**. To achieve this, we will perform the following steps:
 
-- **Understanding the distribution of each variable:** That will give a
-  reference of the normality.
+1.  **Explore the distribution of each individual variable** to
+    understand what is typical or atypical and identify data quality
+    issues.
+2.  **Validate domain knowledge assumptions** to uncover data quality
+    problems or correct erroneous assumptions that could potentially
+    affect our final conclusions.
+3.  **Create new features** based on domain knowledge to enhance the
+    likelihood of discovering valuable insights.
+4.  **Impute missing values** to prevent introducing bias.
+5.  **Use PCA and EFA** to understand the correlation between features.
 
-- Validate if the data has missing values
-
-- Create new features base on domain knowledge
-
-- Confirm assumptions
-
-## Setting-up the enviroment
+## Setting Up The Environment
 
 1.  Loading main packages
 
 ``` r
+library(here)
 library(data.table)
 library(lubridate)
-```
-
-
-    Attaching package: 'lubridate'
-
-    The following objects are masked from 'package:data.table':
-
-        hour, isoweek, mday, minute, month, quarter, second, wday, week,
-        yday, year
-
-    The following objects are masked from 'package:base':
-
-        date, intersect, setdiff, union
-
-``` r
-library(timeDate)
 library(ggplot2)
 library(scales)
 library(patchwork)
-library(here)
-```
-
-    here() starts at C:/Users/angel/R-folder/nyc-taxi-project
-
-``` r
 theme_set(theme_light())
 
 source(here("01-EDA/00-custom-functions.R"))
 ```
 
-2.  Importing from data from January to March as our training data with
-    **56,853,541 rows** as our training corresponding to **10 Gb**.
+2.  Importing data from January to March as our training data with
+    **56,853,541 rows** corresponding to **10 GB**.
 
 ``` r
 TripDataTrain <- fst::read_fst(
@@ -67,8 +49,8 @@ comma(TripDataDim)
 
     [1] "56,853,541" "24"        
 
-3.  Down sampling the data to **17,000,000 rows** to solve memory
-    limitations problems, but keeping a representative sample of the
+3.  Downsampling the data to **17,000,000 rows** to solve memory
+    limitation problems, but keeping a **representative sample** of the
     population.
 
 ``` r
@@ -81,7 +63,7 @@ comma(TripDataDim)
 
     [1] "17,000,000" "24"        
 
-3.  Decoding data based on dictionary information.
+4.  Decoding data based on dictionary information.
 
 ``` r
 TripDataTrain <- decode_cols(
@@ -90,34 +72,12 @@ TripDataTrain <- decode_cols(
 )
 ```
 
-## Validating the distribution of each variable
+## 1. Variable Distribution
 
-### Categorical variables
+To avoid spending too much time on this step, use the same visualization
+based on the variable’s type.
 
-By counting the rows by category for each row we found that:
-
-- We can **remove** the `dispatching_base_num` and
-  `originating_base_num` as theirs information is really close to the
-  `hvfhs_license_num` and their other values only represent **0.02%** of
-  the rows.
-- Based on `shared_request_flag` and `shared_match_flag` we know that
-  must of the passengers **agree to shared the ride** even if other
-  passenger booked separately.
-- Based on `access_a_ride_flag` we know that must of the **trips were
-  administered by MTA**. We also could that the field is missing the “Y”
-  flag.
-- Based on `wav_request_flag` and `wav_match_flag` we know that only
-  **0.16%** of trips requested a wheelchair-accessible vehicle but
-  **6.84%** of trips had that capacity with are really good news.
-- In the `PU_Borough` and `DO_Borough`columns very few trips pass
-  through “Staten Island”, “Unknown” or “EWR” so we will consolidate
-  them as “Other”.
-- `PU_Zone` and `DO_Zone` have too many categories and we don’t need
-  them for this process.
-- As “EWR” represent the **Newark Liberty International Airport** and
-  represent very few trips, we can consolidate this category to the must
-  general one “Airports” for the `PU_service_zone` and `DO_service_zone`
-  columns
+### Categorical Variables Distribution
 
 ``` r
 cat_vars <- TripDataTrain[, names(.SD), .SDcols = is.character]
@@ -247,9 +207,42 @@ for(cat_i in cat_vars){
     4:             N/A   659612      3.88
     5:             EWR   112252      0.66
 
-### Numerical variables
+#### Findings
 
-To validate numeric variables we are potting at normal and logarithmic
+By counting the rows by category for each row, we found that:
+
+- We can **remove** the `dispatching_base_num` and
+  `originating_base_num` as their information is very close to the
+  `hvfhs_license_num`, and their other values only represent **0.02%**
+  of the rows.
+
+- Based on `shared_request_flag` and `shared_match_flag`, we know that
+  most of the passengers **agree to share the ride** even if other
+  passengers booked separately.
+
+- Based on `access_a_ride_flag`, we know that most of the **trips were
+  administered by MTA**. We also found that the field is missing the “Y”
+  flag.
+
+- Based on `wav_request_flag` and `wav_match_flag`, we know that only
+  **0.16%** of trips requested a wheelchair-accessible vehicle, but
+  **6.84%** of trips had that capacity, which is really good news.
+
+- In the `PU_Borough` and `DO_Borough` columns, very few trips pass
+  through “Staten Island”, “Unknown”, or “EWR”, so we will consolidate
+  them as “Other”.
+
+- `PU_Zone` and `DO_Zone` have too many categories, and we don’t need
+  them for this process.
+
+- As “EWR” represents the **Newark Liberty International Airport** and
+  represents very few trips, we can consolidate this category to the
+  more general one “Airports” for the `PU_service_zone` and
+  `DO_service_zone` columns.
+
+### Numerical Variables Distribution
+
+To validate numeric variables we are potting at original and logarithmic
 scale.
 
 ``` r
@@ -262,39 +255,35 @@ for(num_i in num_vars){
 }
 ```
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-1.png)
+![](01-EDA-Process_files/figure-commonmark/num-distribution-1.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-2.png)
+![](01-EDA-Process_files/figure-commonmark/num-distribution-2.png)
 
-    Warning in self$trans$transform(x): NaNs produced
+![](01-EDA-Process_files/figure-commonmark/num-distribution-3.png)
 
-    Warning: Transformation introduced infinite values in continuous x-axis
+![](01-EDA-Process_files/figure-commonmark/num-distribution-4.png)
 
-    Warning: Removed 13155 rows containing non-finite values (`stat_bin()`).
+![](01-EDA-Process_files/figure-commonmark/num-distribution-5.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-3.png)
+![](01-EDA-Process_files/figure-commonmark/num-distribution-6.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-4.png)
+![](01-EDA-Process_files/figure-commonmark/num-distribution-7.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-5.png)
+![](01-EDA-Process_files/figure-commonmark/num-distribution-8.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-6.png)
+![](01-EDA-Process_files/figure-commonmark/num-distribution-9.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-7.png)
+![](01-EDA-Process_files/figure-commonmark/num-distribution-10.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-8.png)
+#### Findings
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-9.png)
+After exploring the histogram of each variable, we found that:
 
-    Warning in self$trans$transform(x): NaNs produced
+- **3,045** trips have 0 miles, which doesn’t make much sense unless the
+  that the trip started and ended at the same location, otherwise these
+  values should be label as `NA`.
 
-    Warning: Transformation introduced infinite values in continuous x-axis
-
-    Warning: Removed 271813 rows containing non-finite values (`stat_bin()`).
-
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-6-10.png)
-
-### Date variables
+### Datetime Variables Distribution
 
 To validate numeric variables we are potting at normal and logarithmic
 scale.
@@ -317,12 +306,85 @@ for(date_i in date_vars){
 }
 ```
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-7-1.png)
+![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-1-1.png)
 
-    Warning: Removed 4610431 rows containing non-finite values (`stat_bin()`).
+![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-1-2.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-7-2.png)
+![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-1-3.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-7-3.png)
+![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-1-4.png)
 
-![](01-EDA-Process_files/figure-commonmark/unnamed-chunk-7-4.png)
+## Domain
+
+![Green and Yellow Zones from :
+https://www.new-york-city-travel-tips.com/green-cab-new-york-boro-taxi/](01-Green-Yellow-Zones.png)
+
+``` r
+TripDataTrain[trip_miles == 0,
+              .N,
+              keyby = .(same_service_zone = PU_service_zone == DO_service_zone,
+                        same_Borough = PU_Borough == DO_Borough,
+                        same_Zone = PU_Zone == DO_Zone)]
+```
+
+       same_service_zone same_Borough same_Zone    N
+    1:             FALSE        FALSE     FALSE   29
+    2:             FALSE         TRUE     FALSE   13
+    3:              TRUE        FALSE     FALSE   13
+    4:              TRUE         TRUE     FALSE  138
+    5:              TRUE         TRUE      TRUE 2852
+
+``` r
+TripDataTrain[trip_miles == 0 &
+                PU_Zone != DO_Zone &
+                ((PU_service_zone != DO_service_zone &
+                    PU_Borough == DO_Borough) |
+                   (PU_service_zone == DO_service_zone &
+                      PU_Borough != DO_Borough)),
+              .SD,
+              .SDcols = patterns("PU_|DO_")] |>
+  View()
+```
+
+``` r
+library(tidygeocoder)
+library(osrm)
+library(leaflet)
+
+# Define the locations
+data <- data.frame(adress = c("JFK Airport, Queens, NY, US",
+                              "Briarwood/Jamaica Hills, Queens, NY, US"))
+
+# Geocode the locations using Nominatim
+geo1 <- tidygeocoder::geocode(data, address = "adress", method = "osm")
+
+geo2 <- tidygeocoder::geocode(data, address = "adress", method = "arcgis")
+
+# Calculate the distance
+dist2 <- osrm::osrmRoute(src = c(geo2$long[1], geo2$lat[1]), dst = c(geo2$long[2], geo2$lat[2]), overview = "full")
+
+# Print the distance in miles
+print(dist2$distance * 0.621371)
+```
+
+    [1] 7.939319
+
+``` r
+install.packages("leaflet")
+```
+
+    Installing leaflet [2.2.0] ...
+        OK [linked cache]
+
+``` r
+library(leaflet)
+
+# Create a leaflet map
+m <- leaflet() |>
+  addTiles() |>
+  addPolylines(data = dist2$geometry,
+               color = "blue")
+
+# Print the map
+print(m)
+```
