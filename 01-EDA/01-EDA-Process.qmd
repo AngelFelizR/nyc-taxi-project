@@ -1,5 +1,6 @@
 ---
 title: "NYC Trip - Exploratory Data Analysis"
+output-file: "README.md"
 format: gfm
 ---
 
@@ -26,23 +27,19 @@ library(scales)
 library(patchwork)
 theme_set(theme_light())
 
-source("01-scripts/02-custom-functions.R")
+source("../01-EDA/00-custom-functions.R")
 ```
 
 2. Importing from data from January to March as our training data with **56,853,541 rows** as our training corresponding to **10 Gb**.
 
 ```{r}
 TripDataTrain <- fst::read_fst(
-  path = "00-data/TripDataTrain.fst",
+  path = "../00-data/TripDataTrain.fst",
   as.data.table = TRUE
 )
 
-
-TripDataTrain[, report_month := NULL]
-
 TripDataDim <- dim(TripDataTrain)
 comma(TripDataDim)
-object.size(TripDataTrain) |> format(unit = "auto")
 ```
 
 3. Down sampling the data to **17,000,000 rows** to solve memory limitations problems, but keeping a representative sample of the population.
@@ -53,7 +50,6 @@ TripDataTrain <- TripDataTrain[sample.int(TripDataDim[1L],17e6)]
 
 TripDataDim <- dim(TripDataTrain)
 comma(TripDataDim)
-object.size(TripDataTrain) |> format(unit = "auto")
 ```
 
 3. Decoding data based on dictionary information.
@@ -61,7 +57,7 @@ object.size(TripDataTrain) |> format(unit = "auto")
 ```{r}
 TripDataTrain <- decode_cols(
   trip_table = TripDataTrain,
-  zone_path = "00-data/taxi+_zone_lookup.csv"
+  zone_path = "../00-data/taxi_zone_lookup.csv"
 )
 ```
 
@@ -130,134 +126,3 @@ for(date_i in date_vars){
 }
 
 ```
-
-
-## Missig values validation
-
-```{r}
-ggplot(TripDataTrain, aes(trip_miles, trip_time))+
-  geom_point(alpha = 0.25)
-
-TripDataTrain[trip_miles <= 0, 
-              ..num_vars
-][, id := .I
-][, melt(.SD,
-         id.vars = "id",
-         variable.factor = FALSE)
-][, .(min_value = min(value),
-      max_value = max(value)),
-  by = "variable"]
-
-TripDataTrain[trip_time <= 0, 
-              ..num_vars
-][, id := .I
-][, melt(.SD,
-         id.vars = "id",
-         variable.factor = FALSE)
-][, .(min_value = min(value),
-      max_value = max(value)),
-  by = "variable"]
-
-TripDataTrain[driver_pay <= 0, 
-              ..num_vars
-][, id := .I
-][, melt(.SD,
-         id.vars = "id",
-         variable.factor = FALSE)
-][, .(min_value = min(value),
-      max_value = max(value)),
-  by = "variable"]
-
-TripDataTrain[driver_pay < 0, View(.SD)]
-
-```
-
-
-Only `originating_base_num` and `on_scene_datetime`
-
-```{r}
-TripDataTrain[, lapply(.SD, \(x) sum(is.na(x)))
-][, id := 1L
-][, melt(.SD,
-         id.vars = "id",
-         variable.factor = FALSE,
-         value.name = "n_miss")
-][order(-n_miss), 
-  !c("id")
-][n_miss>0
-][, pct_miss := n_miss/nrow(TripDataTrain)*100][]
-```
-
-
-## Understanding the distribution of each variable
-
-1. **hvfhs_license_num:** Must of the trips are Uber related.
-
-```{r}
-TripDataTrain[, .N, 
-              by = .(hvfhs_license_num = TaxiCompanyName[hvfhs_license_num])] |>
-  ggplot(aes(N, hvfhs_license_num))+
-  geom_col(aes(fill = hvfhs_license_num),
-           width = 0.65)+
-  scale_x_continuous(labels = comma_format(accuracy = 1))+
-  scale_fill_brewer(palette = "Dark2")+
-  labs(title = "Number of Trips by Company",
-       y = "Company",
-       x = "Trip Count")+
-  theme(plot.title = element_text(face = "bold", hjust = 0.5),
-        legend.position = "none",
-        panel.grid.major.y = element_blank())
-```
-
-
-2. **dispatching_base_num:** Doesn't provide much information in relation in relation to the `hvfhs_license_num`.
-
-```{r}
-TripDataTrain[, .N, 
-              by = .(company = TaxiCompanyName[hvfhs_license_num],
-                     dispatching_base_num)
-][order(company,-N)
-][, prop_N := percent(N/sum(N), accuracy = 0.01),
-  by = "company"][]
-```
-
-3. **originating_base_num:** Doesn't provide much information in relation to `dispatching_base_num`.
-
-```{r}
-TripDataTrain[, .N, 
-              by = .(same_base = dispatching_base_num == originating_base_num,
-                     missing_dispatching_base_num = is.na(dispatching_base_num),
-                     missing_originating_base_num = is.na(originating_base_num))
-][, prop_N := percent(N/sum(N), accuracy = 0.01)][]
-
-```
-
-
-```{r}
-TripDataTrain[, .N, 
-              by = .(company = TaxiCompanyName[hvfhs_license_num],
-                     originating_base_num)
-  ][order(company,-N)
-  ][, prop_N := percent(N/sum(N), accuracy = 0.01),
-    by = "company"][]
-```
-
-
-3. **Pickup_datetime by month:**
-
-```{r}
-TripDataTrain[, .N,
-              by = .(month = floor_date(request_datetime, unit = "day"))] |>
-  ggplot(aes(month, N))+
-  geom_line()
-```
-
-
-
-## Creating new features
-
-```{r}
-
-```
-
-

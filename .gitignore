@@ -1,6 +1,12 @@
+# R and Rstudio files
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
 
+# Data files weight too much
+00-data/*.parquet
+00-data/*.fst
+
+# Temp until updating mine
 README.md

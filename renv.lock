@@ -51,42 +51,6 @@
       "Hash": "ae6cbbe1492f4de79c45fce06f967ce8",
       "Requirements": []
     },
-    "arrow": {
-      "Package": "arrow",
-      "Version": "13.0.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "228c453a8e0fc89dd8834e3c516959fa",
-      "Requirements": [
-        "R6",
-        "assertthat",
-        "bit64",
-        "cpp11",
-        "glue",
-        "purrr",
-        "rlang",
-        "tidyselect",
-        "vctrs"
-      ]
-    },
-    "askpass": {
-      "Package": "askpass",
-      "Version": "1.2.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "cad6cf7f1d5f6e906700b9d3e718c796",
-      "Requirements": [
-        "sys"
-      ]
-    },
-    "assertthat": {
-      "Package": "assertthat",
-      "Version": "0.2.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "50c838a310445e954bc13f26f26a6ecf",
-      "Requirements": []
-    },
     "base64enc": {
       "Package": "base64enc",
       "Version": "0.1-3",
@@ -94,24 +58,6 @@
       "Repository": "CRAN",
       "Hash": "543776ae6848fde2f48ff3816d0628bc",
       "Requirements": []
-    },
-    "bit": {
-      "Package": "bit",
-      "Version": "4.0.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "d242abec29412ce988848d0294b208fd",
-      "Requirements": []
-    },
-    "bit64": {
-      "Package": "bit64",
-      "Version": "4.0.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "9fe98599ca456d6552421db0d6772d8f",
-      "Requirements": [
-        "bit"
-      ]
     },
     "bslib": {
       "Package": "bslib",
@@ -162,14 +108,6 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "707fae4bbf73697ec8d85f9d7076c061",
-      "Requirements": []
-    },
-    "curl": {
-      "Package": "curl",
-      "Version": "5.0.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "511bacbfa153a15251166b463b4da4f9",
       "Requirements": []
     },
     "data.table": {
@@ -232,10 +170,10 @@
     },
     "fs": {
       "Package": "fs",
-      "Version": "1.5.2",
+      "Version": "1.6.3",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "7c89603d81793f0d5486d91ab1fc6f1d",
+      "Hash": "47b5f30c720c23999b913a1a635cf0bb",
       "Requirements": []
     },
     "fst": {
@@ -326,20 +264,6 @@
         "ellipsis",
         "fastmap",
         "rlang"
-      ]
-    },
-    "httr": {
-      "Package": "httr",
-      "Version": "1.4.7",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "ac107251d9d9fd72f0ca8049988f1d7f",
-      "Requirements": [
-        "R6",
-        "curl",
-        "jsonlite",
-        "mime",
-        "openssl"
       ]
     },
     "isoband": {
@@ -451,14 +375,6 @@
         "nlme"
       ]
     },
-    "mime": {
-      "Package": "mime",
-      "Version": "0.12",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "18e9c28c1d3ca1560ce30658b22ce104",
-      "Requirements": []
-    },
     "munsell": {
       "Package": "munsell",
       "Version": "0.5.0",
@@ -477,16 +393,6 @@
       "Hash": "0984ce8da8da9ead8643c5cbbb60f83e",
       "Requirements": [
         "lattice"
-      ]
-    },
-    "openssl": {
-      "Package": "openssl",
-      "Version": "2.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "273a6bb4a9844c296a459d2176673270",
-      "Requirements": [
-        "askpass"
       ]
     },
     "patchwork": {
@@ -525,20 +431,6 @@
       "Repository": "CRAN",
       "Hash": "01f28d4278f15c76cddbea05899c5d6f",
       "Requirements": []
-    },
-    "purrr": {
-      "Package": "purrr",
-      "Version": "1.0.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "1cba04a4e9414bdefc9dcaa99649a8dc",
-      "Requirements": [
-        "cli",
-        "lifecycle",
-        "magrittr",
-        "rlang",
-        "vctrs"
-      ]
     },
     "rappdirs": {
       "Package": "rappdirs",
@@ -583,25 +475,6 @@
         "yaml"
       ]
     },
-    "rvest": {
-      "Package": "rvest",
-      "Version": "1.0.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "a4a5ac819a467808c60e36e92ddf195e",
-      "Requirements": [
-        "cli",
-        "glue",
-        "httr",
-        "lifecycle",
-        "magrittr",
-        "rlang",
-        "selectr",
-        "tibble",
-        "withr",
-        "xml2"
-      ]
-    },
     "sass": {
       "Package": "sass",
       "Version": "0.4.2",
@@ -633,17 +506,6 @@
         "viridisLite"
       ]
     },
-    "selectr": {
-      "Package": "selectr",
-      "Version": "0.4-2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "3838071b66e0c566d55cc26bd6e27bf4",
-      "Requirements": [
-        "R6",
-        "stringr"
-      ]
-    },
     "stringi": {
       "Package": "stringi",
       "Version": "1.7.12",
@@ -668,14 +530,6 @@
         "vctrs"
       ]
     },
-    "sys": {
-      "Package": "sys",
-      "Version": "3.4.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "3a1be13d68d47a8cd0bfd74739ca1555",
-      "Requirements": []
-    },
     "tibble": {
       "Package": "tibble",
       "Version": "3.2.1",
@@ -690,21 +544,6 @@
         "pkgconfig",
         "rlang",
         "vctrs"
-      ]
-    },
-    "tidyselect": {
-      "Package": "tidyselect",
-      "Version": "1.2.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "79540e5fcd9e0435af547d885f184fd5",
-      "Requirements": [
-        "cli",
-        "glue",
-        "lifecycle",
-        "rlang",
-        "vctrs",
-        "withr"
       ]
     },
     "timeDate": {
@@ -778,14 +617,6 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "8f56e9acb54fb525e66464d57ab58bcb",
-      "Requirements": []
-    },
-    "xml2": {
-      "Package": "xml2",
-      "Version": "1.3.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "40682ed6a969ea5abfd351eb67833adc",
       "Requirements": []
     },
     "yaml": {
