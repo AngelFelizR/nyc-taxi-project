@@ -1,179 +1,207 @@
 ---
 title: "Exploratory Data Analysis"
-format: ipynb
+format: 
+  ipynb:
+      toc: true
 execute:
   message: false
   warning: false
 ---
 
-## Description
-
-Although the primary objective of this project is to **predict the tips** that taxi drivers receive from passengers, it's crucial to have a comprehensive understanding of the data to **avoid drawing incorrect conclusions**. To achieve this, we will perform the following steps:
-
-1. **Explore the distribution of each individual variable** to understand what is typical or atypical and identify data quality issues.
-2. **Validate domain knowledge assumptions** to uncover data quality problems or correct erroneous assumptions that could potentially affect our final conclusions.
-3. **Create new features** based on domain knowledge to enhance the likelihood of discovering valuable insights.
-4. **Impute missing values** to prevent introducing bias.
-5. **Use PCA and EFA** to understand the correlation between features.
-
-
-## Setting Up The Environment
+## Setting the environment up
 
 1. Loading main packages
 
-```{r load-packages}
+```{r}
 library(here)
 library(data.table)
 library(lubridate)
 library(ggplot2)
 library(scales)
+library(forcats)
 library(patchwork)
 theme_set(theme_light())
 
 source(here("R/02-custom-functions.R"))
+source(here("R/03-custom-values.R"))
 ```
 
-2. Importing data from January to March as our training data with **56,853,541 rows** corresponding to **10 GB**.
+2. Importing zone codes
 
-```{r import-raw-data}
-TripDataTrain <- fst::read_fst(
+```{r}
+ZoneCodes <- fread(
+  here("data/taxi_zone_lookup.csv"),
+  select = ZoneCodesColTypes
+)
+```
+
+3. Importing and decoding training data.
+
+```{r}
+DecodedTrips <- fst::read_fst(
   path = here("data/TripDataTrain.fst"),
   as.data.table = TRUE
-)
+) |>
+  decode_zones(ZoneCodes) |>
+  decode_business()
 
-TripDataDim <- dim(TripDataTrain)
-comma(TripDataDim)
+setnames(DecodedTrips, "bcf","back_car_fund")
 ```
 
-3. Downsampling the data to **10,000,000 rows** to solve memory limitation problems, but keeping a **representative sample** of the population.
+## Exploring variable distribution
 
-```{r sampling-data}
-set.seed(20230922)
-TripDataTrain <- TripDataTrain[sample.int(TripDataDim[1L],17e6)]
+The purpose of this section is to:
 
-TripDataDim <- dim(TripDataTrain)
-comma(TripDataDim)
+- Understand the meaning of each variable and compare results with current domain knolege
+- Find hidden missing values
+- Find usual values
+
+### Categorical variables distribution
+
+- `company`: The majority number of trips are done by *Uber* (HV003) and the rest for *Lyft*.
+
+```{r}
+plot_chr_count(DecodedTrips, "company")
 ```
 
-4. Decoding data based on dictionary information.
+- `dispatching_base_num`: This column doesn't show much information, so we will **erase** this column as it doesn't show any useful information.
 
-```{r decoding-zone-codes}
-TripDataTrain <- decode_cols(
-  trip_table = TripDataTrain,
-  zone_path = here("data/taxi_zone_lookup.csv")
-)
+```{r}
+plot_chr_count(DecodedTrips, "dispatching_base_num")
 ```
 
-## 1. Variable Distribution
+- `originating_base_num`: This column doesn't show much information, so we will **erase** this column as it doesn't show any useful information.
 
-To avoid spending too much time on this step, use the same visualization based on the variable's type.
-
-### Categorical Variables Distribution
-
-```{r cat-distribution}
-cat_vars <- TripDataTrain[, names(.SD), .SDcols = is.character]
-
-for(cat_i in cat_vars){
-  TripDataTrain[, .(count = .N), 
-                by = cat_i
-  ][, pct_count := round(count/sum(count)*100, 2)
-  ][order(-count)] |>
-  print()
-}
-
+```{r}
+plot_chr_count(DecodedTrips, "originating_base_num")
 ```
 
-#### Findings
+- `shared_request_flag`: Most of passengers don't agree to a shared/pooled ride.
 
-By counting the rows by category for each row, we found that:
+```{r}
+plot_chr_count(DecodedTrips, "shared_request_flag")
+```
 
-- We can **remove** the `dispatching_base_num` and `originating_base_num` as their information is very close to the `hvfhs_license_num`, and their other values only represent **0.02%** of the rows.
+- `shared_match_flag`: Shows that actually fewer trips were shared.
 
-- Based on `shared_request_flag` and `shared_match_flag`, we know that most of the passengers **agree to share the ride** even if other passengers booked separately.
+```{r}
+plot_chr_count(DecodedTrips, "shared_match_flag")
+```
 
-- Based on `access_a_ride_flag`, we know that most of the **trips were administered by MTA**. We also found that the field is missing the "Y" flag.
+- `access_a_ride_flag`: *Uber* isn't reporting whether their trips were administered on behalf of the Metropolitan 
+Transportation Authority and for *Lyft* the answer is always "N", so we will **erase** this column as it doesn't show any useful information.
 
-- Based on `wav_request_flag` and `wav_match_flag`, we know that only **0.16%** of trips requested a wheelchair-accessible vehicle, but **6.84%** of trips had that capacity, which is really good news.
+```{r}
+plot_chr_count(DecodedTrips, "access_a_ride_flag")
 
-- In the `PU_Borough` and `DO_Borough` columns, very few trips pass through "Staten Island", "Unknown", or "EWR", so we will consolidate them as "Other".
+DecodedTrips[, .N,
+              by = c("company",
+                     "access_a_ride_flag")]
+```
 
-- `PU_Zone` and `DO_Zone` have too many categories, and we don't need them for this process.
+- `wav_request_flag`: It's really unusual for a passager to request a wheelchair-accessible vehicle.
 
-- As "EWR" represents the **Newark Liberty International Airport** and represents very few trips, we can consolidate this category to the more general one "Airports" for the `PU_service_zone` and `DO_service_zone` columns.
+```{r}
+plot_chr_count(DecodedTrips, "wav_request_flag")
 
-### Numerical Variables Distribution
+DecodedTrips[, .N, "wav_request_flag"]
+```
 
-To validate numeric variables we are potting at original and logarithmic scale.
+- `wav_match_flag`: 7% of trips took place in wheelchair-accessible vehicle which implies that there is more offers than demand.
 
-```{r num-distribution}
-num_vars <- TripDataTrain[, names(.SD), .SDcols = is.numeric]
+```{r}
+plot_chr_count(DecodedTrips, "wav_match_flag")
+```
 
-for(num_i in num_vars){
+- For `start_Borough` and `end_Borough` tt's weird to start or end the trips in Stalen Island or the EWR Airport. We will need to **inputate** the Unknown level.
+
+```{r}
+ggBorough1 <- plot_chr_count(DecodedTrips, "start_Borough")
+
+ggBorough2 <- plot_chr_count(DecodedTrips, "end_Borough")
+
+ggBorough1 + ggBorough2
+```
+
+- For `start_service_zone` and `end_service_zone` It's weird to start or end the trips in any Airports. For consistency we will **relabel EWR as Airpots** and **impute** "N/A" values.
+
+```{r}
+ggServiceZone1 <- plot_chr_count(DecodedTrips, "start_service_zone")
+
+ggServiceZone2 <- plot_chr_count(DecodedTrips, "end_service_zone")
+
+ggServiceZone1 + ggServiceZone2
+```
+
+At this point is important to explain that in NYC cabs operate different depending on its color:
+
+- **Yellow cabs**: They have no restrictions when it comes to travel.
+
+- **Green cabs**: They can only pick up passengers in Harlem (south of West 110th St and East 96th St), Queens, the Bronx and Brooklyn — excluding the airports but **can drop passengers off anywhere** in New York City.
+
+> Uber and Lyft doesn't any restriction at traveling.
+
+![Zone map from NYC Taxi & Limousine Commission (TLC)](assets/01-Green-Yellow-Zones.png)
+
+
+- `start_Zone` and `end_Zone` represent a diverse number of places as theirs higher proportion of trips is lower then 3% with the exception of the "N/A" value that needs to be **erased and inputed**.
+
+```{r}
+ggZone1 <- plot_chr_count(DecodedTrips, "start_Zone")
+
+ggZone2 <- plot_chr_count(DecodedTrips, "end_Zone")
+
+ggZone1 + ggZone2
+```
+
+
+### Numerical variables distribution
+
+Before checking any distribution chart let's the summary statistics of numeric vars.
+
+```{r}
+NumericSummary <-
+  DecodedTrips[, .SD, .SDcols = is.numeric] |>
+  skimr::skim()
   
- print(custom_histogram(TripDataTrain, num_i))
-
-}
+setDT(NumericSummary) |> print()
 ```
 
-#### Findings
+After checking that statistics we can say that:
 
-After exploring the histogram of each variable, we found that:
+1. Numeric values has very different dimensions. So we will need to scale them before applying any method based on distances like PCA.
 
-- **`r TripDataTrain[trip_miles == 0, comma(.N)]`** trips have 0 miles, which doesn't make much sense unless the that the trip started and ended at the same location, otherwise these values should be label as `NA`.
+2. Variables have **very high variability** as of theirs coefficient of variation are higher 0.50, specially for `airport_fee`, `tolls` and `tips`.
 
-### Datetime Variables Distribution
-
-To validate numeric variables we are potting at normal and logarithmic scale.
-
-```{r datetime-distribution}
-date_vars <- TripDataTrain[, names(.SD), .SDcols = is.POSIXct]
-
-for(date_i in date_vars){
-  
-  date_hist <-
-    ggplot(TripDataTrain, aes(get(date_i)))+
-    geom_histogram(fill = "blue",
-                   color = "black",
-                   alpha = 0.8,
-                   bins = 30)+
-    labs(title = paste0(date_i, " Distribution"),
-         x = date_i)
-  
-  print(date_hist)
-}
-
+```{r}
+NumericSummary[, .(variable = skim_variable,
+                   CV = numeric.sd/numeric.mean)
+  ][, variable := fct_reorder(variable, CV)] |>
+  ggplot(aes(CV, variable))+
+  geom_col(fill = "forestgreen", alpha = 0.75)+
+  labs(title = "Coefficient of variation summary")+
+  theme(plot.title = element_text(face = "bold"))
 ```
 
+3. `trip_miles`, `trip_time`, `base_passenger_fare`, `sales_tax` and `driver_pay` could be 0 of all of them a 0 at the same time, otherwise we need to **erase and input the values**.
 
-## Domain Knowledge Validation
-
-![Green and Yellow Zones from : https://www.new-york-city-travel-tips.com/green-cab-new-york-boro-taxi/](assets/01-Green-Yellow-Zones.png)
-
+4. If `base_passenger_fare` and `driver_pay` are negative them we need to **erase and input the values** the passanger cannot charge the drive.
 
 
-```{r domain-knowledge}
-TripDataTrain[trip_miles == 0,
-              .N,
-              keyby = .(same_service_zone = PU_service_zone == DO_service_zone,
-                        same_Borough = PU_Borough == DO_Borough,
-                        same_Zone = PU_Zone == DO_Zone)]
+### Datetime variables distribution
 
+```{r}
+DatetimeSummary <-
+  DecodedTrips[, .SD, .SDcols = is.POSIXct] |>
+  skimr::skim()
 
-TripDataTrain[trip_miles == 0 &
-                PU_Zone != DO_Zone &
-                ((PU_service_zone != DO_service_zone &
-                    PU_Borough == DO_Borough) |
-                   (PU_service_zone == DO_service_zone &
-                      PU_Borough != DO_Borough)),
-              .SD,
-              .SDcols = patterns("PU_|DO_")]
-
+setDT(DatetimeSummary) |> print()
 ```
 
+## MAPPING
 
 ```{r}
 library(leaflet)
-library(here)
 
 # Define the locations
 data <- data.frame(adress = c("JFK Airport, Queens, NY, US",
@@ -210,3 +238,8 @@ webshot::webshot(MapHtml, MapImg, zoom = 10)
 #| eval: true
 file.remove(c(MapImg,MapHtml))
 ```
+
+
+## References
+
+- Taxi color: https://newyorksimply.com/green-taxis-nyc-cab/

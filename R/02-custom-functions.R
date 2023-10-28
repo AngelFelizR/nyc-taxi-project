@@ -1,39 +1,48 @@
 
-# This function decodes columns in a trip table using a company code and zone table.
-# It also joins the trip table with the zone table based on pickup and dropoff locations.
-decode_cols <- function(trip_table, zone_path){
-  # Load zone table
-  zone_table <- fread(zone_path)
-  zone_names <- copy(names(zone_table))
 
-  # Rename columns in zone table for pickup locations
-  setnames(
-    zone_table,
-    zone_names[-1],
-    paste0("PU_",zone_names[-1])
-  )
+plot_chr_count <- function(dt,
+                           var_name,
+                           point_color = "forestgreen",
+                           alpha = 0.75){
 
-  # Join trip table with zone table on pickup location
-  trip_table <-
-    trip_table[zone_table,
-               on = c("PULocationID" = "LocationID"),
-               nomatch = 0]
 
-  # Rename columns in zone table for dropoff locations
-  setnames(
-    zone_table,
-    names(zone_table)[-1],
-    paste0("DO_",zone_names[-1])
-  )
+  dt_count <-
+    dt[, .(count = .N),
+       by = .(var_x =
+                fct_infreq(get(var_name)) |>
+                fct_lump(n = 15) |>
+                fct_rev())
+    ][, pct_count := count/sum(count)]
 
-  # Join trip table with zone table on dropoff location
-  trip_table <-
-    trip_table[zone_table,
-               on = c("DOLocationID" = "LocationID"),
-               nomatch = 0]
 
-  # Remove position ids from trip table
-  trip_table[, c("PULocationID", "DOLocationID") := NULL]
+  ggplot(dt_count,
+         aes(count, var_x))+
+    geom_blank(aes(x = count *1.10))+
+    geom_segment(linewidth = 1,
+                 x = 0,
+                 aes(xend = count,
+                     y = var_x,
+                     yend = var_x))+
+    geom_point(size = 4,
+               color = point_color,
+               alpha = alpha)+
+    geom_text(aes(label = scales::percent(pct_count,
+                                          accuracy = 1)),
+              hjust = -0.75,
+              size = 4)+
+    scale_x_continuous(labels = scales::comma_format(accuracy = 1))+
+    expand_limits(x = 0)+
+    labs(title = var_name,
+         y = "") +
+    theme(plot.title = element_text(face = "bold"),
+          panel.grid.major.y = element_blank())
+
+}
+
+decode_business <- function(trip_dt){
+
+  # To avoid side effects
+  trip_dt <- copy(trip_dt)
 
   # Define company codes
   company_code <- c(
@@ -44,9 +53,56 @@ decode_cols <- function(trip_table, zone_path){
   )
 
   # Replace company codes in trip table with company names
-  trip_table[, hvfhs_license_num := company_code[hvfhs_license_num]]
+  trip_dt[, `:=`(company = company_code[hvfhs_license_num],
+                 hvfhs_license_num = NULL)]
 
-  return(trip_table)
+  return(trip_dt)
+
+}
+
+
+# Description
+## It decodes columns in a trip table using a company code and zone table.
+## It also joins the trip table with the zone table based on pickup and dropoff locations.
+
+decode_zones <- function(trip_dt,
+                         zone_dt){
+
+  # Load zone table
+  zone_dt <- copy(zone_dt)
+  zone_names <- copy(names(zone_dt))
+
+  # Rename columns in zone table for pickup locations
+  setnames(
+    zone_dt,
+    zone_names[-1],
+    paste0("start_",zone_names[-1])
+  )
+
+  # Join trip table with zone table on pickup location
+  trip_dt <-
+    trip_dt[zone_dt,
+            on = c("PULocationID" = "LocationID"),
+            nomatch = 0]
+
+  # Rename columns in zone table for dropoff locations
+  setnames(
+    zone_dt,
+    names(zone_dt)[-1],
+    paste0("end_",zone_names[-1])
+  )
+
+  # Join trip table with zone table on dropoff location
+  trip_dt <-
+    trip_dt[zone_dt,
+            on = c("DOLocationID" = "LocationID"),
+            nomatch = 0]
+
+  # Remove position ids from trip table
+  trip_dt[, c("PULocationID", "DOLocationID") := NULL]
+
+  return(trip_dt)
+
 }
 
 
