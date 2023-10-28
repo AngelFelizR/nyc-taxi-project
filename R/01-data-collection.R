@@ -1,9 +1,6 @@
 
-# 1. Install packages listed in the renv.lock file ----
-if(!"renv" %in% installed.packages()[, 1L]) install.packages("renv")
-renv::restore()
+# 1. Scraping document's links from official website ----
 
-# 2. Scraping document's links from official website ----
 SourcePage <-
   rvest::read_html("https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page")
 
@@ -20,16 +17,21 @@ TaxiZoneLink <-
   rvest::html_attr("href") |>
   trimws()
 
-# 3. Downloading each file ----
+
+# 2. Downloading each file ----
+
+# Creating data dir if missing
+if(!"data" %in% dir()) dir.create("data")
+
+## Defining the path to save files
+TripLocalPath <- file.path("data", basename(TripLinks))
 
 ## This will make sure that R won't stop before
 ## downloading each parquet file
 options(timeout = 800)
 
-## Defining the path to save files
-TripLocalPath <- file.path("00-data", basename(TripLinks))
-
 ## Saving Trip Parquet files
+## using he wb mode to download binaries
 for(link_i in seq_along(TripLinks)){
   download.file(TripLinks[link_i],
                 destfile = TripLocalPath[link_i],
@@ -38,27 +40,37 @@ for(link_i in seq_along(TripLinks)){
 
 ## Saving Taxi Zone CSV
 download.file(TaxiZoneLink,
-              destfile = file.path("00-data","taxi_zone_lookup.csv"),
+              destfile = file.path("data","taxi_zone_lookup.csv"),
               mode = "wb")
 
 
-# 4. Splitting training and testing data ----
+# 3. Splitting training and testing data ----
 
 ## As we a lot of data we can use 3 moths for training
 ## the rest of the months for testing the results
-FilePathTrain <- head(LocalPath, 3L)
-FilePathTest <- setdiff(LocalPath, FileSeqTrain)
+FilePathTrain <- head(TripLocalPath, 3L)
+FilePathTest <- setdiff(TripLocalPath, FilePathTrain)
+
+## Down sampling training and testing data to 10 million rows
+## To mitigate the current computational limitations
+DownSampleRows <- 1e7
 
 ## Saving training set
+set.seed(202301)
 FilePathTrain |>
   lapply(\(x) data.table::as.data.table(arrow::read_parquet(x))) |>
   data.table::rbindlist() |>
-  fst::write_fst("00-data/TripDataTrain.fst")
+  (\(dt) dt[sample.int(n = nrow(dt), size = DownSampleRows)])() |>
+  fst::write_fst("data/TripDataTrain.fst")
 gc()
 
 ## Saving testing set
+set.seed(202302)
 FilePathTest |>
   lapply(\(x) data.table::as.data.table(arrow::read_parquet(x))) |>
   data.table::rbindlist() |>
-  fst::write_fst("00-data/TripDataTest.fst")
+  (\(dt) dt[sample.int(n = nrow(dt), size = DownSampleRows)])() |>
+  fst::write_fst("data/TripDataTest.fst")
 gc()
+
+set.seed(NULL)
