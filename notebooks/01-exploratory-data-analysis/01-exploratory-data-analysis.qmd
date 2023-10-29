@@ -1,8 +1,10 @@
 ---
 title: "Exploratory Data Analysis"
 format: 
-  ipynb:
-      toc: true
+  gfm:
+    output-file: README.md
+    toc: true
+
 execute:
   message: false
   warning: false
@@ -19,7 +21,6 @@ library(lubridate)
 library(ggplot2)
 library(scales)
 library(forcats)
-library(patchwork)
 theme_set(theme_light())
 
 source(here("R/02-custom-functions.R"))
@@ -113,24 +114,22 @@ DecodedTrips[, .N, "wav_request_flag"]
 plot_chr_count(DecodedTrips, "wav_match_flag")
 ```
 
-- For `start_Borough` and `end_Borough` tt's weird to start or end the trips in Stalen Island or the EWR Airport. We will need to **inputate** the Unknown level.
+- For `start_Borough` and `end_Borough` it's weird to start or end the trips in Stalen Island or the EWR Airport.
 
 ```{r}
-ggBorough1 <- plot_chr_count(DecodedTrips, "start_Borough")
-
-ggBorough2 <- plot_chr_count(DecodedTrips, "end_Borough")
-
-ggBorough1 + ggBorough2
+plot_chr_count(DecodedTrips, 
+               count_var = c("start_Borough",
+                             "end_Borough"),
+               breaks_width = 2e6)
 ```
 
-- For `start_service_zone` and `end_service_zone` It's weird to start or end the trips in any Airports. For consistency we will **relabel EWR as Airpots** and **impute** "N/A" values.
+- For `start_service_zone` and `end_service_zone` It's weird to start or end the trips in any Airports. For consistency we will **relabel EWR as Airports**.
 
 ```{r}
-ggServiceZone1 <- plot_chr_count(DecodedTrips, "start_service_zone")
-
-ggServiceZone2 <- plot_chr_count(DecodedTrips, "end_service_zone")
-
-ggServiceZone1 + ggServiceZone2
+plot_chr_count(DecodedTrips, 
+               count_var = c("start_service_zone",
+                             "end_service_zone"),
+               breaks_width = 2e6)
 ```
 
 At this point is important to explain that in NYC cabs operate different depending on its color:
@@ -139,7 +138,7 @@ At this point is important to explain that in NYC cabs operate different dependi
 
 - **Green cabs**: They can only pick up passengers in Harlem (south of West 110th St and East 96th St), Queens, the Bronx and Brooklyn — excluding the airports but **can drop passengers off anywhere** in New York City.
 
-> Uber and Lyft doesn't any restriction at traveling.
+> **Uber** and **Lyft** doesn't any restriction at traveling.
 
 ![Zone map from NYC Taxi & Limousine Commission (TLC)](assets/01-Green-Yellow-Zones.png)
 
@@ -147,11 +146,11 @@ At this point is important to explain that in NYC cabs operate different dependi
 - `start_Zone` and `end_Zone` represent a diverse number of places as theirs higher proportion of trips is lower then 3% with the exception of the "N/A" value that needs to be **erased and inputed**.
 
 ```{r}
-ggZone1 <- plot_chr_count(DecodedTrips, "start_Zone")
-
-ggZone2 <- plot_chr_count(DecodedTrips, "end_Zone")
-
-ggZone1 + ggZone2
+plot_chr_count(DecodedTrips, 
+               count_var = c("start_Zone",
+                             "end_Zone"),
+               breaks_width = 3e6,
+               wrap_scales = "free_y")
 ```
 
 
@@ -164,7 +163,7 @@ NumericSummary <-
   DecodedTrips[, .SD, .SDcols = is.numeric] |>
   skimr::skim()
   
-setDT(NumericSummary) |> print()
+NumericSummary
 ```
 
 After checking that statistics we can say that:
@@ -174,7 +173,7 @@ After checking that statistics we can say that:
 2. Variables have **very high variability** as of theirs coefficient of variation are higher 0.50, specially for `airport_fee`, `tolls` and `tips`.
 
 ```{r}
-NumericSummary[, .(variable = skim_variable,
+as.data.table(NumericSummary)[, .(variable = skim_variable,
                    CV = numeric.sd/numeric.mean)
   ][, variable := fct_reorder(variable, CV)] |>
   ggplot(aes(CV, variable))+
@@ -190,56 +189,29 @@ NumericSummary[, .(variable = skim_variable,
 
 ### Datetime variables distribution
 
+As we can see below of the date time data is complete excepting the `on_scene_datetime` which by definition measures the time when driver arrived at the pick-up location for accessible vehicles. 70% of NYC aren't accessible vehicles so there is some thing wrong with that description, so will be remove that column as the `pickup_datetime` also measures the same time without missing values.
+
 ```{r}
 DatetimeSummary <-
   DecodedTrips[, .SD, .SDcols = is.POSIXct] |>
   skimr::skim()
 
-setDT(DatetimeSummary) |> print()
-```
-
-## MAPPING
-
-```{r}
-library(leaflet)
-
-# Define the locations
-data <- data.frame(adress = c("JFK Airport, Queens, NY, US",
-                              "Briarwood/Jamaica Hills, Queens, NY, US"))
-
-
-geo2 <- tidygeocoder::geocode(data, address = "adress", method = "arcgis")
-
-# Calculate the distance
-dist2 <- osrm::osrmRoute(
-  src = geo2[1,c("long","lat")],
-  dst = geo2[2,c("long","lat")],
-  overview = "full"
-)
-
-# Print the distance in miles
-print(dist2$distance * 0.621371)
-
-# Create a leaflet map
-m <- leaflet() |>
-  addTiles() |>
-  addPolylines(data = dist2$geometry,
-               color = "blue")
-
-MapImg <- here("notebooks/map.png")
-MapHtml <- here("notebooks/map.html")
-
-htmlwidgets::saveWidget(m, MapHtml)
-webshot::webshot(MapHtml, MapImg, zoom = 10)
+DatetimeSummary
 ```
 
 ```{r}
-#| include: false
-#| eval: true
-file.remove(c(MapImg,MapHtml))
+# ggplot cannot support plotting 10 million points
+set.seed(5184)
+ggplot(DecodedTrips[!is.na(on_scene_datetime), 
+                    .SD[sample.int(.N, 1e3)]],
+       aes(on_scene_datetime, pickup_datetime))+
+  geom_point(alpha = 0.08)
+set.seed(NULL)
 ```
 
 
 ## References
 
 - Taxi color: https://newyorksimply.com/green-taxis-nyc-cab/
+
+- Number of accesible vehicles: https://www.rollxvans.com/handicap-accesible-taxis-nyc/#:~:text=Currently%20there%20are%20upwards%20of%2013%2C000%20taxis%20in,231%20of%20them%20are%20wheelchair%20accessible%20vehicle%20s.

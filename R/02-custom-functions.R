@@ -1,20 +1,26 @@
 
 
 plot_chr_count <- function(dt,
-                           var_name,
+                           count_var,
+                           breaks_width = NULL,
+                           wrap_scales = "fixed",
                            point_color = "forestgreen",
-                           alpha = 0.75){
-
+                           alpha = 0.85,
+                           accuracy = 1){
 
   dt_count <-
-    dt[, .(count = .N),
-       by = .(var_x =
-                fct_infreq(get(var_name)) |>
-                fct_lump(n = 15) |>
-                fct_rev())
-    ][, pct_count := count/sum(count)]
+    lapply(count_var, function(x){
+      dt[, .(count_var = x,
+             count = .N),
+         by = .(var_x =
+                  fct_infreq(get(x)) |>
+                  fct_lump(n = 15) |>
+                  fct_rev())
+      ][, pct_count := count/sum(count)]
+    }) |>
+    rbindlist()
 
-
+  report_plot <-
   ggplot(dt_count,
          aes(count, var_x))+
     geom_blank(aes(x = count *1.10))+
@@ -26,16 +32,27 @@ plot_chr_count <- function(dt,
     geom_point(size = 4,
                color = point_color,
                alpha = alpha)+
-    geom_text(aes(label = scales::percent(pct_count,
-                                          accuracy = 1)),
+    geom_text(aes(label = percent(pct_count,
+                                  accuracy = accuracy)),
               hjust = -0.75,
               size = 4)+
-    scale_x_continuous(labels = scales::comma_format(accuracy = 1))+
+    scale_x_continuous(labels = comma_format(accuracy = accuracy),
+                       breaks = if(!is.null(breaks_width)){breaks_width(breaks_width)}else{waiver()} )+
     expand_limits(x = 0)+
-    labs(title = var_name,
+    labs(title = paste0(count_var, collapse = ", "),
          y = "") +
     theme(plot.title = element_text(face = "bold"),
           panel.grid.major.y = element_blank())
+
+
+  if(length(count_var) > 1L){
+    report_plot <-
+      report_plot +
+      facet_wrap(~count_var, scales = wrap_scales)+
+      theme(plot.title = element_blank())
+  }
+
+  return(report_plot)
 
 }
 
