@@ -25,7 +25,7 @@ format: gfm
 
 ### Problem description
 
-According to the *Taxi & Limousine Commission* (TLC) of New York City in 2021 where **174,924 drivers** licensed to make trips in that city. All drivers are interest in increasing their incomes and one great way to archive that it's to **start receiving more tips** from their passengers.
+According to the *Taxi & Limousine Commission* (TLC) of New York City in 2021 where **174,924 drivers** licensed to make trips in that city. All drivers are interested in increasing their incomes and one great way to archive that it's to **start receiving more tips** from their passengers.
 
 Let's explore the [High Volume FHV Trip Records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) provided by the TLC of New York city which contain data related trips done by app companies like *Uber*, *Via* and *Lyft* to find **what can be done to increase the changes to receive a tip**.
 

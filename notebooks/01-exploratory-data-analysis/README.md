@@ -20,10 +20,11 @@ library(lubridate)
 library(ggplot2)
 library(scales)
 library(forcats)
-theme_set(theme_light())
+library(tidymodels)
 
 source(here("R/02-custom-functions.R"))
 source(here("R/03-custom-values.R"))
+theme_set(custom_theme)
 ```
 
 2.  Importing zone codes
@@ -269,13 +270,12 @@ as.data.table(NumericSummary)[, .(variable = skim_variable,
 
 ![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-16-1.png)
 
-3.  `trip_miles`, `trip_time`, `base_passenger_fare`, `sales_tax` and
-    `driver_pay` could be 0 of all of them a 0 at the same time,
-    otherwise we need to **erase and input the values**.
+3.  `base_passenger_fare` and `driver_pay` present some problems as some
+    values a really low and event 0. Checking in internet we found that
+    not Uber’s cars present base fare, what the don’t see any reason for
+    the negative values.
 
-4.  If `base_passenger_fare` and `driver_pay` are negative them we need
-    to **erase and input the values** the passanger cannot charge the
-    drive.
+![](assets/02-uber-base-fare.png)
 
 ### Datetime variables distribution
 
@@ -335,6 +335,8 @@ set.seed(NULL)
 ## References
 
 - Taxi color: https://newyorksimply.com/green-taxis-nyc-cab/
+
+- Uber base fare: http://taxihowmuch.com/location/new-york-ny-us
 
 - Number of accesible vehicles:
   https://www.rollxvans.com/handicap-accesible-taxis-nyc/#:~:text=Currently%20there%20are%20upwards%20of%2013%2C000%20taxis%20in,231%20of%20them%20are%20wheelchair%20accessible%20vehicle%20s.

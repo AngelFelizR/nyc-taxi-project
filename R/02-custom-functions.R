@@ -1,4 +1,76 @@
 
+# 1. Importing -----
+
+decode_business <- function(trip_dt){
+
+  # To avoid side effects
+  trip_dt <- copy(trip_dt)
+
+  # Define company codes
+  company_code <- c(
+    "HV0002" = "Juno",
+    "HV0003" = "Uber",
+    "HV0004" = "Via",
+    "HV0005" = "Lyft"
+  )
+
+  # Replace company codes in trip table with company names
+  trip_dt[, `:=`(company = company_code[hvfhs_license_num],
+                 hvfhs_license_num = NULL)]
+
+  return(trip_dt)
+
+}
+
+
+# Description
+## It decodes columns in a trip table using a company code and zone table.
+## It also joins the trip table with the zone table based on
+## pickup and dropoff locations.
+
+decode_zones <- function(trip_dt,
+                         zone_dt){
+
+  # We don't want to edit original variables
+  zone_dt <- copy(zone_dt)
+  zone_names <- copy(names(zone_dt))
+
+  # Rename columns in zone table for pickup locations
+  setnames(
+    zone_dt,
+    zone_names[-1],
+    paste0("start_",zone_names[-1])
+  )
+
+  # Join trip table with zone table on pickup location
+  trip_dt <-
+    trip_dt[zone_dt,
+            on = c("PULocationID" = "LocationID"),
+            nomatch = 0]
+
+  # Rename columns in zone table for dropoff locations
+  setnames(
+    zone_dt,
+    names(zone_dt)[-1],
+    paste0("end_",zone_names[-1])
+  )
+
+  # Join trip table with zone table on dropoff location
+  trip_dt <-
+    trip_dt[zone_dt,
+            on = c("DOLocationID" = "LocationID"),
+            nomatch = 0]
+
+  # Remove position ids from trip table
+  trip_dt[, c("PULocationID", "DOLocationID") := NULL]
+
+  return(trip_dt)
+
+}
+
+
+
+# 2. Plotting ----
 
 plot_chr_count <- function(dt,
                            count_var,
@@ -41,8 +113,7 @@ plot_chr_count <- function(dt,
     expand_limits(x = 0)+
     labs(title = paste0(count_var, collapse = ", "),
          y = "") +
-    theme(plot.title = element_text(face = "bold"),
-          panel.grid.major.y = element_blank())
+    theme(panel.grid.major.y = element_blank())
 
 
   if(length(count_var) > 1L){
@@ -56,138 +127,23 @@ plot_chr_count <- function(dt,
 
 }
 
-decode_business <- function(trip_dt){
+hist_low_tail <- function(dt,
+                          var_name,
+                          low_value = 1,
+                          bins = 50){
 
-  # To avoid side effects
-  trip_dt <- copy(trip_dt)
-
-  # Define company codes
-  company_code <- c(
-    "HV0002" = "Juno",
-    "HV0003" = "Uber",
-    "HV0004" = "Via",
-    "HV0005" = "Lyft"
-  )
-
-  # Replace company codes in trip table with company names
-  trip_dt[, `:=`(company = company_code[hvfhs_license_num],
-                 hvfhs_license_num = NULL)]
-
-  return(trip_dt)
+  ggplot(dt[get(var_name) <= low_value],
+         aes(get(var_name))) +
+    geom_histogram(bins = bins,
+                   fill = "forestgreen",
+                   alpha = 0.75)+
+    labs(title = paste0(var_name," <= ", low_value),
+         x = "")
 
 }
 
 
-# Description
-## It decodes columns in a trip table using a company code and zone table.
-## It also joins the trip table with the zone table based on pickup and dropoff locations.
-
-decode_zones <- function(trip_dt,
-                         zone_dt){
-
-  # Load zone table
-  zone_dt <- copy(zone_dt)
-  zone_names <- copy(names(zone_dt))
-
-  # Rename columns in zone table for pickup locations
-  setnames(
-    zone_dt,
-    zone_names[-1],
-    paste0("start_",zone_names[-1])
-  )
-
-  # Join trip table with zone table on pickup location
-  trip_dt <-
-    trip_dt[zone_dt,
-            on = c("PULocationID" = "LocationID"),
-            nomatch = 0]
-
-  # Rename columns in zone table for dropoff locations
-  setnames(
-    zone_dt,
-    names(zone_dt)[-1],
-    paste0("end_",zone_names[-1])
-  )
-
-  # Join trip table with zone table on dropoff location
-  trip_dt <-
-    trip_dt[zone_dt,
-            on = c("DOLocationID" = "LocationID"),
-            nomatch = 0]
-
-  # Remove position ids from trip table
-  trip_dt[, c("PULocationID", "DOLocationID") := NULL]
-
-  return(trip_dt)
-
-}
-
-
-# Define a custom function for creating histograms
-custom_histogram <- function(DT,
-                             var_name,
-                             n_breaks = 7L){
-
-  # Summarize the variable
-  var_summary <- summary(DT[[var_name]]) |> round(2)
-
-  # Create a text string of the summary
-  summary_text <-
-    paste(names(var_summary), var_summary) |>
-    paste0(collapse = " | ")
-
-  # Create the title for the plot
-  plot_title <- paste0(
-    var_name," Distribution\n",
-    summary_text, "\n",
-    DT[get(var_name) < 0,
-       paste0("Neg: ", percent(.N/TripDataDim[1L], accuracy = 0.01))]
-  )
-
-  # Create the original plot
-  original_plot <-
-    ggplot(DT, aes(get(var_name)))+
-    geom_histogram(fill = "blue",
-                   color = "black",
-                   alpha = 0.8,
-                   bins = 30)+
-    labs(title = plot_title,
-         x = var_name)
-
-  # Check if the first element of var_range is zero
-  if(var_summary[1L] == 0){
-
-    # Create a log plot with log2 transformation and an offset of +1
-    log_plot <-
-      original_plot+
-      scale_x_continuous(trans = trans_new("log2+1",
-                                           \(x) log2(x+1),
-                                           \(x) 2^x - 1),
-                         breaks = breaks_extended(n_breaks))+
-      labs(title = "",
-           x = paste0("log2(",var_name,"+1)"))
-
-  }else{
-
-    # Create a log plot with log2 transformation
-    log_plot <-
-      original_plot+
-      scale_x_continuous(trans = "log2",
-                         breaks = breaks_extended(n_breaks))+
-      labs(title = "",
-           x = paste0("log2(",var_name,")"))
-
-  }
-
-  # Combine the original and log plots
-  gg_final <- original_plot/log_plot
-
-  # Return the final plot
-  return(gg_final)
-
-}
-
-
+# 3. Feature Engineering ----
 
 # Define function
 add_date_features <- function(DT,

@@ -22,9 +22,10 @@ TaxiZoneLink <-
 
 # Creating data dir if missing
 if(!"data" %in% dir()) dir.create("data")
+if(!"tripdata" %in% dir("data")) dir.create("data/tripdata")
 
 ## Defining the path to save files
-TripLocalPath <- file.path("data", basename(TripLinks))
+TripLocalPath <- file.path("data","tripdata", basename(TripLinks))
 
 ## This will make sure that R won't stop before
 ## downloading each parquet file

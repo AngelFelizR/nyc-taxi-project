@@ -64,5 +64,4 @@ be done to increase the changes to receive a tip**.
 - *New York City Taxi and Limousine Commission 2021 Annual Report*:
   https://www.nyc.gov/assets/tlc/downloads/pdf/annual_report_2021.pdf
 
-*Dataset Description*:
-https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_hvfhs.pdf
+- *Dataset Description*: https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_hvfhs.pdf
