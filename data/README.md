@@ -4,7 +4,7 @@ In this project will use a subset of the data available in the [TLC Trip Record 
 
 I will focus our attention to the 2023 data available on the **High Volume For-Hire Vehicle** as you can see below.
 
-![](assets/01-source-page.png)
+![](01-source-page.png)
 
 Where each **row represents a single trip** in an FHV  dispatched by one of NYCâ€™s licensed High Volume FHV bases and each column has next meaning based on [data dictionary](https://www.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_hvfhs.pdf) avaible on the web page.
 
@@ -17,7 +17,7 @@ Where each **row represents a single trip** in an FHV  dispatched by one of NYCâ
 |**PULocationID**|TLC Taxi Zone in which the trip began|
 |**DOLocationID**|TLC Taxi Zone in which the trip ended|
 |**originating_base_num**|Base number of the base that received the original trip request|
-|**request_datetime **|Date/time when passenger requested to be picked up|
+|**request_datetime**|Date/time when passenger requested to be picked up|
 |**on_scene_datetime**|Date/time when driver arrived at the pick-up location (Accessible Vehicles-only)|
 |**trip_miles**|Total miles for passenger trip|
 |**trip_time**|Total time in seconds for passenger trip|
@@ -31,7 +31,6 @@ Where each **row represents a single trip** in an FHV  dispatched by one of NYCâ
 |**driver_pay**|Total driver pay (not including tolls or tips and net of commission, surcharges, or taxes)|
 |**shared_request_flag**|Did the passenger agree to a shared/pooled ride, regardless of whether they were matched? (Y/N)|
 |**shared_match_flag**|Did the passenger share the vehicle with another passenger who booked separately at any point during the trip? (Y/N)|
-|**access_a_ride_flag**|Was the trip administered on behalf of the Metropolitan 
-Transportation Authority (MTA)? (Y/N)|
+|**access_a_ride_flag**|Was the trip administered on behalf of the Metropolitan Transportation Authority (MTA)? (Y/N)|
 |**wav_request_flag**|Did the passenger request a wheelchair-accessible vehicle (WAV)? (Y/N)|
 |**wav_match_flag**|Did the trip occur in a wheelchair-accessible vehicle (WAV)? (Y/N)|
