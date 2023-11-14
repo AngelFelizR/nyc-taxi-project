@@ -1,3 +1,15 @@
+---
+title: "Data Collection Process"
+format: 
+  gfm:
+    toc: true
+
+execute:
+  message: false
+  warning: false
+---
+
+```{r}
 
 # 1. Scraping document's links from official website ----
 
@@ -79,3 +91,6 @@ FilePathTest |>
 gc()
 
 set.seed(NULL)
+
+```
+
