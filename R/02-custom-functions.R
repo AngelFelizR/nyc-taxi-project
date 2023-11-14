@@ -72,6 +72,18 @@ decode_zones <- function(trip_dt,
 
 # 2. Plotting ----
 
+count_dt <- function(dt, x){
+
+  dt[, .(count_var = x,
+         count = .N),
+     by = .(var_x =
+              fct_infreq(get(x)) |>
+              fct_lump(n = 15) |>
+              fct_rev())
+  ][, pct_count := count/sum(count)]
+
+}
+
 plot_chr_count <- function(dt,
                            count_var,
                            breaks_width = NULL,
@@ -80,17 +92,15 @@ plot_chr_count <- function(dt,
                            alpha = 0.85,
                            accuracy = 1){
 
+  has_many_vars <- length(count_var) > 1L
+
   dt_count <-
-    lapply(count_var, function(x){
-      dt[, .(count_var = x,
-             count = .N),
-         by = .(var_x =
-                  fct_infreq(get(x)) |>
-                  fct_lump(n = 15) |>
-                  fct_rev())
-      ][, pct_count := count/sum(count)]
-    }) |>
-    rbindlist()
+    if(has_many_vars){
+      lapply(count_var, count_dt, dt = dt) |>
+        rbindlist()
+    }else{
+      count_dt(dt, count_var)
+    }
 
   report_plot <-
   ggplot(dt_count,
@@ -116,7 +126,7 @@ plot_chr_count <- function(dt,
     theme(panel.grid.major.y = element_blank())
 
 
-  if(length(count_var) > 1L){
+  if(has_many_vars){
     report_plot <-
       report_plot +
       facet_wrap(~count_var, scales = wrap_scales)+

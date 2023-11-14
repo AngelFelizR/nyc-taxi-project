@@ -5,7 +5,7 @@
 .Ruserdata
 
 # Data files weight too much
-data/tripdata/*.parquet
+data/trip-data/*.parquet
 data/*.fst
 data/*.csv
 data/*.pdf

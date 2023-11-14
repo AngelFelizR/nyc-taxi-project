@@ -8,8 +8,9 @@ TripLinks <-
   SourcePage |>
   rvest::html_elements(xpath = '//div[@class="faq-answers"]//li/a') |>
   rvest::html_attr("href") |>
-  grep(pattern = "fhvhv_[a-z]+_2023-0[1-6]\\.parquet", value = TRUE) |>
-  trimws()
+  grep(pattern = "fhvhv_[a-z]+_2023-\\d{2}\\.parquet", value = TRUE) |>
+  trimws() |>
+  tail(6L)
 
 TaxiZoneLink <-
   SourcePage |>
@@ -22,14 +23,14 @@ TaxiZoneLink <-
 
 # Creating data dir if missing
 if(!"data" %in% dir()) dir.create("data")
-if(!"tripdata" %in% dir("data")) dir.create("data/tripdata")
+if(!"trip-data" %in% dir("data")) dir.create("data/trip-data")
 
 ## Defining the path to save files
-TripLocalPath <- file.path("data","tripdata", basename(TripLinks))
+TripLocalPath <- file.path("data","trip-data", basename(TripLinks))
 
 ## This will make sure that R won't stop before
 ## downloading each parquet file
-options(timeout = 800)
+options(timeout = 1800)
 
 ## Saving Trip Parquet files
 ## using he wb mode to download binaries
@@ -50,11 +51,15 @@ download.file(TaxiZoneLink,
 ## As we a lot of data we can use 3 moths for training
 ## the rest of the months for testing the results
 FilePathTrain <- head(TripLocalPath, 3L)
-FilePathTest <- setdiff(TripLocalPath, FilePathTrain)
+FilePathTest <- tail(TripLocalPath, 3L)
 
-## Down sampling training and testing data to 10 million rows
+## Down sampling training and testing data to 5% of rows
 ## To mitigate the current computational limitations
-DownSampleRows <- 1e7
+TotalRows <-
+  arrow::open_dataset(here::here("data/trip-data")) |>
+  nrow()
+
+DownSampleRows <- as.integer(TotalRows*0.05/2)
 
 ## Saving training set
 set.seed(202301)

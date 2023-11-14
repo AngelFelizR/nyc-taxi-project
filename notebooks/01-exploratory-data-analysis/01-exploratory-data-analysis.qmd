@@ -16,12 +16,12 @@ execute:
 
 ```{r}
 library(here)
+library(tidymodels)
 library(data.table)
 library(lubridate)
 library(ggplot2)
 library(scales)
 library(forcats)
-library(tidymodels)
 
 source(here("R/02-custom-functions.R"))
 source(here("R/03-custom-values.R"))
@@ -47,6 +47,8 @@ DecodedTrips <- fst::read_fst(
   decode_zones(ZoneCodes) |>
   decode_business()
 
+gc()
+
 setnames(DecodedTrips, "bcf","back_car_fund")
 ```
 
@@ -54,7 +56,7 @@ setnames(DecodedTrips, "bcf","back_car_fund")
 
 The purpose of this section is to:
 
-- Understand the meaning of each variable and compare results with current domain knolege
+- Understand the meaning of each variable and compare results with current domain knowledge
 - Find hidden missing values
 - Find usual values
 
