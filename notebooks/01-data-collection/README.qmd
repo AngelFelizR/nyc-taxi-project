@@ -29,7 +29,9 @@ TripLinks <-
   trimws() |>
   sort()
 
-basename(TripLinks) 
+FileNames <- basename(TripLinks)
+
+FileNames
 ```
 
 From the same page we also can find the link to download the codes related to each Zone.
@@ -44,71 +46,87 @@ TaxiZoneLink <-
 
 ## Saving files
 
-As we have many files
+To take advantage of the best capacities of `arrow` we need save a each parquet file in folder with useful information to filter later, that why we will have one folder level related to years the next sub-folders related to a month with each parquet with the name `part-0.parquet`
+
+Let's start creating a folder to store all the parquet files.
 
 ```{r}
+ParquetFolderPath <- file.path("data", "trip-data")
 
-# 2. Downloading each file ----
+dir.create(ParquetFolderPath, showWarnings  = FALSE)
 
-# Creating data dir if missing
-if(!"data" %in% dir()) dir.create("data")
-if(!"trip-data" %in% dir("data")) dir.create("data/trip-data")
+ParquetFolderPath
+```
 
-## Defining the path to save files
-TripLocalPath <- file.path("data","trip-data", basename(TripLinks))
+Then we need to define the sub-folders to split the files based on year.
 
-## This will make sure that R won't stop before
-## downloading each parquet file
+```{r}
+YearFolders <- gsub(
+  x = FileNames,
+  pattern = "^fhvhv_tripdata_|-\\d{2}\\.parquet$",
+  replacement = ""
+) |>
+  paste0("year=", a = _)
+
+YearFoldersUnique <- unique(YearFolders)
+YearFoldersPath <- file.path(ParquetFolderPath, YearFoldersUnique)
+
+for(year_i in YearFoldersPath) dir.create(year_i)
+
+YearFoldersPath
+```
+
+Once created we just need to create the de month folder.
+
+```{r}
+MonthFolders <- gsub(
+  x = FileNames,
+  pattern = "^fhvhv_tripdata_\\d{4}-|\\.parquet$",
+  replacement = ""
+) |>
+  paste0("month=", a = _)
+
+MonthFoldersPath <- file.path(ParquetFolderPath, YearFolders, MonthFolders)
+
+for(month_i in MonthFoldersPath) dir.create(month_i, showWarnings = FALSE)
+
+MonthFoldersPath
+
+```
+
+Finally, we just need to download each file on each folder.
+
+```{r}
+#| eval: false
+
+
+# Parquet files might time a longer time to be downloaded
 options(timeout = 1800)
 
-## Saving Trip Parquet files
-## using he wb mode to download binaries
+
+# Parquet trip data
 for(link_i in seq_along(TripLinks)){
+  
   download.file(TripLinks[link_i],
-                destfile = TripLocalPath[link_i],
+                destfile = file.path(MonthFoldersPath[link_i],"part-0.parquet"),
                 mode = "wb")
+  
 }
 
-## Saving Taxi Zone CSV
+
+# Taxi Zone CSV
 download.file(TaxiZoneLink,
               destfile = file.path("data","taxi_zone_lookup.csv"),
               mode = "wb")
 
+```
 
-# 3. Splitting training and testing data ----
 
-## As we a lot of data we can use 3 moths for training
-## the rest of the months for testing the results
-FilePathTrain <- head(TripLocalPath, 3L)
-FilePathTest <- tail(TripLocalPath, 3L)
+## Final result
 
-## Down sampling training and testing data to 5% of rows
-## To mitigate the current computational limitations
-TotalRows <-
-  arrow::open_dataset(here::here("data/trip-data")) |>
-  nrow()
+After getting all the files you should end with the next structure for the `data` folder.
 
-DownSampleRows <- as.integer(TotalRows*0.05/2)
-
-## Saving training set
-set.seed(202301)
-FilePathTrain |>
-  lapply(\(x) data.table::as.data.table(arrow::read_parquet(x))) |>
-  data.table::rbindlist() |>
-  (\(dt) dt[sample.int(n = nrow(dt), size = DownSampleRows)])() |>
-  fst::write_fst("data/TripDataTrain.fst")
-gc()
-
-## Saving testing set
-set.seed(202302)
-FilePathTest |>
-  lapply(\(x) data.table::as.data.table(arrow::read_parquet(x))) |>
-  data.table::rbindlist() |>
-  (\(dt) dt[sample.int(n = nrow(dt), size = DownSampleRows)])() |>
-  fst::write_fst("data/TripDataTest.fst")
-gc()
-
-set.seed(NULL)
-
+```{r}
+fs::dir_tree(here::here("data"))
 ```
 
