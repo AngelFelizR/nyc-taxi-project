@@ -9,10 +9,15 @@ execute:
   warning: false
 ---
 
+For most projects the data collection process can be done manually and later attache the file in the `data` folder but that isn't a option when we are working with big data.
+
+To solve this problem, we have created the next script to automate the data collection process so the project could be reproduced easily just by running the code below.
+
+## Web Scraping
+
+To always have a updated list of 2022 and 2023 links of **High Volume For-Hire Vehicles** documents let's scrape the [TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) by using the `rvest` library.
+
 ```{r}
-
-# 1. Scraping document's links from official website ----
-
 SourcePage <-
   rvest::read_html("https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page")
 
@@ -20,15 +25,28 @@ TripLinks <-
   SourcePage |>
   rvest::html_elements(xpath = '//div[@class="faq-answers"]//li/a') |>
   rvest::html_attr("href") |>
-  grep(pattern = "fhvhv_[a-z]+_2023-\\d{2}\\.parquet", value = TRUE) |>
-  trimws()
+  grep(pattern = "fhvhv_[a-z]+_202[23]-\\d{2}\\.parquet", value = TRUE) |>
+  trimws() |>
+  sort()
 
+basename(TripLinks) 
+```
+
+From the same page we also can find the link to download the codes related to each Zone.
+
+```{r}
 TaxiZoneLink <-
   SourcePage |>
   rvest::html_elements(xpath = '//ul/li/a[text()="Taxi Zone Lookup Table"]')  |>
   rvest::html_attr("href") |>
   trimws()
+```
 
+## Saving files
+
+As we have many files
+
+```{r}
 
 # 2. Downloading each file ----
 
