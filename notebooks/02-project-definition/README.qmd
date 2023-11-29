@@ -1,0 +1,33 @@
+---
+title: "Defining the project"
+format: 
+  gfm:
+    toc: true
+
+execute:
+  message: false
+  warning: false
+---
+
+## Problem Description
+
+## Project Scope (Isolate business units)
+
+## Top Process Definition (SIPOC)
+
+## Project Objetives (Define objectives)
+
+## Business Need (Collect outcomes)
+
+- Investigate if objectives are being met
+
+## Deliverables (Synthesize outcomes)
+
+Competitor has a faster lead time
+
+## Hypothesize drivers
+
+Lead time is related to supplier delivery, inventory availability, personnel, and the scheduling process.
+
+
+## Setting goals (Develop KPIs)
