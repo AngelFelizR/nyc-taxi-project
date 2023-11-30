@@ -2,7 +2,7 @@
 
 In this project will use a subset of the data available in the [TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page).
 
-I will focus our attention to the 2023 data available on the **High Volume For-Hire Vehicle** as you can see below.
+I will focus our attention to the 2022 and 2023 data available on the **High Volume For-Hire Vehicle** as you can see below.
 
 ![](01-source-page.png)
 
