@@ -9,46 +9,39 @@ execute:
   warning: false
 ---
 
+Once we have clear objective in mind, it is time to make some EDA to:
+
+- Ensure data quality
+- Identify the best models to train
+- Identify opportunities for creating new features that can enhance the predictive power of the machine learning model
+
 ## Setting the environment up
 
-1. Loading main packages
+Let's start loading the main packages to use in this section.
 
 ```{r}
 library(here)
-library(tidymodels)
 library(data.table)
-library(lubridate)
 library(ggplot2)
 library(scales)
 library(forcats)
-
-source(here("R/02-custom-functions.R"))
-source(here("R/03-custom-values.R"))
-theme_set(custom_theme)
+library(dplyr)
+library(arrow)
 ```
 
-2. Importing zone codes
+Then we can import all 2022 trips to `arrow` to explore then using the in disk capacities that has the big data tool.
 
 ```{r}
-ZoneCodes <- fread(
-  here("data/taxi_zone_lookup.csv"),
-  select = ZoneCodesColTypes
-)
-```
-
-3. Importing and decoding training data.
-
-```{r}
-DecodedTrips <- fst::read_fst(
-  path = here("data/TripDataTrain.fst"),
-  as.data.table = TRUE
-) |>
-  decode_zones(ZoneCodes) |>
-  decode_business()
-
-gc()
-
-setnames(DecodedTrips, "bcf","back_car_fund")
+NycTrips2022 <- 
+  here("data/trip-data/year=2022") |>
+  open_dataset() |>
+  mutate(company = case_when(
+    hvfhs_license_num == "HV0002" ~ "Juno",
+    hvfhs_license_num == "HV0003" ~ "Uber",
+    hvfhs_license_num == "HV0004" ~ "Via",
+    hvfhs_license_num == "HV0005" ~ "Lyft"
+  )) |>
+  select(-hvfhs_license_num)
 ```
 
 ## Exploring variable distribution
@@ -61,78 +54,93 @@ The purpose of this section is to:
 
 ### Categorical variables distribution
 
+As we are going to count every categorical variable let's create a simple function to avoid DRY.
+
+```{r}
+count_pct <- function(x, ..., sort = TRUE){
+  
+  count(x, ..., sort = sort) |>
+  collect() |>
+  mutate(pct = n / sum(n))
+  
+}
+```
+
 - `company`: The majority number of trips are done by *Uber* (HV003) and the rest for *Lyft*.
 
 ```{r}
-plot_chr_count(DecodedTrips, "company")
+NycTrips2022 |> count_pct(company)
 ```
 
 - `dispatching_base_num`: This column doesn't show much information, so we will **erase** this column as it doesn't show any useful information.
 
 ```{r}
-plot_chr_count(DecodedTrips, "dispatching_base_num")
+NycTrips2022 |> count_pct(dispatching_base_num)
 ```
 
 - `originating_base_num`: This column doesn't show much information, so we will **erase** this column as it doesn't show any useful information.
 
 ```{r}
-plot_chr_count(DecodedTrips, "originating_base_num")
+NycTrips2022 |> count_pct(originating_base_num)
 ```
 
 - `shared_request_flag`: Most of passengers don't agree to a shared/pooled ride.
 
 ```{r}
-plot_chr_count(DecodedTrips, "shared_request_flag")
+NycTrips2022 |> count_pct(shared_request_flag)
 ```
 
 - `shared_match_flag`: Shows that actually fewer trips were shared.
 
 ```{r}
-plot_chr_count(DecodedTrips, "shared_match_flag")
+NycTrips2022 |> count_pct(shared_match_flag)
 ```
 
-- `access_a_ride_flag`: *Uber* isn't reporting whether their trips were administered on behalf of the Metropolitan 
-Transportation Authority and for *Lyft* the answer is always "N", so we will **erase** this column as it doesn't show any useful information.
+- `access_a_ride_flag`: *Uber* isn't reporting whether their trips were administered on behalf of the Metropolitan Transportation Authority and for *Lyft* the answer is always "N", so we will **erase** this column as it doesn't show any useful information.
 
 ```{r}
-plot_chr_count(DecodedTrips, "access_a_ride_flag")
-
-DecodedTrips[, .N,
-              by = c("company",
-                     "access_a_ride_flag")]
+NycTrips2022 |> count_pct(company, access_a_ride_flag)
 ```
 
 - `wav_request_flag`: It's really unusual for a passager to request a wheelchair-accessible vehicle.
 
 ```{r}
-plot_chr_count(DecodedTrips, "wav_request_flag")
-
-DecodedTrips[, .N, "wav_request_flag"]
+NycTrips2022 |> count_pct(wav_request_flag)
 ```
 
 - `wav_match_flag`: 7% of trips took place in wheelchair-accessible vehicle which implies that there is more offers than demand.
 
 ```{r}
-plot_chr_count(DecodedTrips, "wav_match_flag")
+NycTrips2022 |> count_pct(wav_match_flag)
 ```
 
-- For `start_Borough` and `end_Borough` it's weird to start or end the trips in Stalen Island or the EWR Airport.
+Now we take a look the start end points
 
 ```{r}
-plot_chr_count(DecodedTrips, 
-               count_var = c("start_Borough",
-                             "end_Borough"),
-               breaks_width = 2e6)
+
+ZoneCodes <- fread(
+  here("data/taxi_zone_lookup.csv"),
+  colClasses = c("integer", "character", "character", "character")
+)
+
+
+TripsLocationSummary <-
+  NycTrips2022 |>
+  count(PULocationID, DOLocationID) |>
+  collect() |>
+  as.data.table() |>
+  (\(dt) ZoneCodes[, .(start_id = LocationID,
+                       start_Borough = Borough,
+                       start_zone = Zone,
+                       start_service_zone = service_zone)
+  ][dt, on = c("start_id" = "PULocationID")])() |>
+  (\(dt) ZoneCodes[, .(end_id = LocationID,
+                       end_Borough = Borough,
+                       end_zone = Zone,
+                       end_service_zone = service_zone)
+  ][dt, on = c("end_id" = "DOLocationID")])()
 ```
 
-- For `start_service_zone` and `end_service_zone` It's weird to start or end the trips in any Airports. For consistency we will **relabel EWR as Airports**.
-
-```{r}
-plot_chr_count(DecodedTrips, 
-               count_var = c("start_service_zone",
-                             "end_service_zone"),
-               breaks_width = 2e6)
-```
 
 At this point is important to explain that in NYC cabs operate different depending on its color:
 
@@ -217,7 +225,6 @@ ggplot(DecodedTrips[!is.na(on_scene_datetime),
   geom_point(alpha = 0.08)
 set.seed(NULL)
 ```
-
 
 ## References
 

@@ -138,8 +138,8 @@ NycTrips <- open_dataset(here::here("data/trip-data"))
 
 # 2022 Earning Summary
 NycTrips |>
-  filter(year == 2022) %>%
-  summarize(number_of_trips = nrow(.),
+  filter(year == 2022) |>
+  summarize(number_of_trips = sum(driver_pay > -1e6),
             trips_with_tips = sum(tips > 0, na.rm = TRUE),
             driver_net_earning = sum(driver_pay + tips, na.rm = TRUE),
             tips = sum(tips, na.rm = TRUE)) |>
