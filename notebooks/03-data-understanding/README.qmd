@@ -129,16 +129,45 @@ TripsLocationSummary <-
   count(PULocationID, DOLocationID) |>
   collect() |>
   as.data.table() |>
-  (\(dt) ZoneCodes[, .(start_id = LocationID,
-                       start_Borough = Borough,
-                       start_zone = Zone,
-                       start_service_zone = service_zone)
-  ][dt, on = c("start_id" = "PULocationID")])() |>
-  (\(dt) ZoneCodes[, .(end_id = LocationID,
-                       end_Borough = Borough,
+    (\(dt) ZoneCodes[, .(end_id = LocationID,
+                       end_borough = Borough,
                        end_zone = Zone,
                        end_service_zone = service_zone)
-  ][dt, on = c("end_id" = "DOLocationID")])()
+  ][dt, on = c("end_id" = "DOLocationID")])() |>
+  (\(dt) ZoneCodes[, .(start_id = LocationID,
+                       start_borough = Borough,
+                       start_zone = Zone,
+                       start_service_zone = service_zone)
+  ][dt, on = c("start_id" = "PULocationID")])()
+
+```
+
+
+```{r}
+TripsLocationSummary[, .(n = sum(n)),
+                     by = c("start_borough", "end_borough")
+  ][order(n)
+  ][, c("start_borough", "end_borough") := 
+      lapply(.SD, \(x) factor(x, levels = unique(x, fromLast = TRUE)) ),
+    .SDcols = c("start_borough", "end_borough")
+  ][, end_borough := fct_rev(end_borough)] |>
+  ggplot(aes(end_borough, start_borough))+
+  geom_tile(aes(fill = n)) +
+  geom_text(aes(label = percent(n/sum(n), accuracy = 0.01))) +
+  scale_fill_gradient(low = "white", 
+                      high = "red",
+                      labels= comma_format())+
+  scale_x_discrete(position = "top") +
+  labs(title = "Distribution of Trips by Borough in NYC 2022",
+       x = "Trip End", 
+       y = "Trip Start", 
+       fill = "Number of Trips") +
+  theme_classic() +
+  theme(plot.title = element_text(face = "bold"),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(face = "italic"))
 ```
 
 
