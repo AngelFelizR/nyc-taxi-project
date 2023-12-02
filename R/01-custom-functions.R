@@ -1,159 +1,34 @@
 
-# 1. Importing -----
+# 1. EDA -----
 
-decode_business <- function(trip_dt){
+count_pct <- function(x, ..., sort = TRUE){
 
-  # To avoid side effects
-  trip_dt <- copy(trip_dt)
-
-  # Define company codes
-  company_code <- c(
-    "HV0002" = "Juno",
-    "HV0003" = "Uber",
-    "HV0004" = "Via",
-    "HV0005" = "Lyft"
-  )
-
-  # Replace company codes in trip table with company names
-  trip_dt[, `:=`(company = company_code[hvfhs_license_num],
-                 hvfhs_license_num = NULL)]
-
-  return(trip_dt)
+  count(x, ..., sort = sort) |>
+    collect() |>
+    mutate(pct = n / sum(n))
 
 }
 
 
-# Description
-## It decodes columns in a trip table using a company code and zone table.
-## It also joins the trip table with the zone table based on
-## pickup and dropoff locations.
+join_zones <- function(x, zone_tb){
 
-decode_zones <- function(trip_dt,
-                         zone_dt){
-
-  # We don't want to edit original variables
-  zone_dt <- copy(zone_dt)
-  zone_names <- copy(names(zone_dt))
-
-  # Rename columns in zone table for pickup locations
-  setnames(
-    zone_dt,
-    zone_names[-1],
-    paste0("start_",zone_names[-1])
-  )
-
-  # Join trip table with zone table on pickup location
-  trip_dt <-
-    trip_dt[zone_dt,
-            on = c("PULocationID" = "LocationID"),
-            nomatch = 0]
-
-  # Rename columns in zone table for dropoff locations
-  setnames(
-    zone_dt,
-    names(zone_dt)[-1],
-    paste0("end_",zone_names[-1])
-  )
-
-  # Join trip table with zone table on dropoff location
-  trip_dt <-
-    trip_dt[zone_dt,
-            on = c("DOLocationID" = "LocationID"),
-            nomatch = 0]
-
-  # Remove position ids from trip table
-  trip_dt[, c("PULocationID", "DOLocationID") := NULL]
-
-  return(trip_dt)
+  as.data.table(x) |>
+    (\(dt) zone_tb[, .(end_id = LocationID,
+                       end_borough = Borough,
+                       end_zone = Zone,
+                       end_service_zone = service_zone)
+    ][dt, on = c("end_id" = "DOLocationID")])() |>
+    (\(dt) zone_tb[, .(start_id = LocationID,
+                       start_borough = Borough,
+                       start_zone = Zone,
+                       start_service_zone = service_zone)
+    ][dt, on = c("start_id" = "PULocationID")])()
 
 }
 
 
 
-# 2. Plotting ----
-
-count_dt <- function(dt, x){
-
-  dt[, .(count_var = x,
-         count = .N),
-     by = .(var_x =
-              fct_infreq(get(x)) |>
-              fct_lump(n = 15) |>
-              fct_rev())
-  ][, pct_count := count/sum(count)]
-
-}
-
-plot_chr_count <- function(dt,
-                           count_var,
-                           breaks_width = NULL,
-                           wrap_scales = "fixed",
-                           point_color = "forestgreen",
-                           alpha = 0.85,
-                           accuracy = 1){
-
-  has_many_vars <- length(count_var) > 1L
-
-  dt_count <-
-    if(has_many_vars){
-      lapply(count_var, count_dt, dt = dt) |>
-        rbindlist()
-    }else{
-      count_dt(dt, count_var)
-    }
-
-  report_plot <-
-  ggplot(dt_count,
-         aes(count, var_x))+
-    geom_blank(aes(x = count *1.10))+
-    geom_segment(linewidth = 1,
-                 x = 0,
-                 aes(xend = count,
-                     y = var_x,
-                     yend = var_x))+
-    geom_point(size = 4,
-               color = point_color,
-               alpha = alpha)+
-    geom_text(aes(label = percent(pct_count,
-                                  accuracy = accuracy)),
-              hjust = -0.75,
-              size = 4)+
-    scale_x_continuous(labels = comma_format(accuracy = accuracy),
-                       breaks = if(!is.null(breaks_width)){breaks_width(breaks_width)}else{waiver()} )+
-    expand_limits(x = 0)+
-    labs(title = paste0(count_var, collapse = ", "),
-         y = "") +
-    theme(panel.grid.major.y = element_blank())
-
-
-  if(has_many_vars){
-    report_plot <-
-      report_plot +
-      facet_wrap(~count_var, scales = wrap_scales)+
-      theme(plot.title = element_blank())
-  }
-
-  return(report_plot)
-
-}
-
-hist_low_tail <- function(dt,
-                          var_name,
-                          low_value = 1,
-                          bins = 50){
-
-  ggplot(dt[get(var_name) <= low_value],
-         aes(get(var_name))) +
-    geom_histogram(bins = bins,
-                   fill = "forestgreen",
-                   alpha = 0.75)+
-    labs(title = paste0(var_name," <= ", low_value),
-         x = "")
-
-}
-
-
-# 3. Feature Engineering ----
+# 2. Feature Engineering ----
 
 # Define function
 add_date_features <- function(DT,
@@ -246,42 +121,6 @@ add_date_features <- function(DT,
     new_vars <- setdiff(names(DT), var_names)
     setnames(DT, new_vars, paste0(prefix,"_",new_vars))
   }
-
-  return(DT)
-}
-
-
-
-# This function transforms data after Exploratory Data Analysis (EDA).
-# It handles categorical variables and performs some specific transformations based on certain conditions.
-trans_after_eda <- function(DT){
-
-  # Remove unnecessary columns
-  DT[, c("dispatching_base_num",
-         "originating_base_num",
-         "PU_Zone",
-         "DO_Zone") := NULL]
-
-  # If access_a_ride_flag is not 'N', set it to 'Y'
-  DT[access_a_ride_flag != "N",
-     access_a_ride_flag := "Y"]
-
-  # Define boroughs to be grouped as 'Other'
-  borough_other <- c("Staten Island", "Unknown", "EWR")
-
-  # Group certain pickup boroughs as 'Other'
-  DT[PU_Borough %chin% borough_other,
-     PU_Borough := "Other"]
-
-  # Group certain dropoff boroughs as 'Other'
-  DT[DO_Borough %chin% borough_other,
-     DO_Borough := "Other"]
-
-  # Group EWR service zones as 'Airports' for dropoff locations
-  DT[PU_service_zone == "EWR",
-     PU_service_zone := "Airports"]
-  DT[DO_service_zone == "EWR",
-     DO_service_zone := "Airports"]
 
   return(DT)
 }

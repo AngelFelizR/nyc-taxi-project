@@ -1,5 +1,5 @@
 ---
-title: "Exploratory Data Analysis"
+title: "Exploratory Data Analysis (EDA) of 2022 High Volume For-Hire Vehicles"
 format: 
   gfm:
     toc: true
@@ -9,15 +9,29 @@ execute:
   warning: false
 ---
 
-Once we have clear objective in mind, it is time to make some EDA to:
+After completing the [business understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding) step, we have a clear objective in mind and an initial description for each column the [raw data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data), we are ready to perform the *data understanding* by performing an EDA with the following steps:
 
-- Ensure data quality
-- Identify the best models to train
-- Identify opportunities for creating new features that can enhance the predictive power of the machine learning model
+1. Examining the distribution of each individual variable by counting the categorical variables and creating histograms or box plots for numerical variables
+2. Confirming domain knowledge relations by creating visualization with 2 or more variables
+3. Taking a subset of the data to fit in RAM
+4. Defining the target variable and confirming its distribution
+5. Exploring correlations between predictors by using a correlation matrix or running a PCA
+6. Removing high correlated predictors
+7. Exploring correlations between the target and predictors creating a correlation funnel and some scatter plots.
+
+After completing this process, we will have the following outcomes:
+
+- Confirming the meaning of each variable
+- Ensuring data quality by finding missing values and 
+- Identifying the best models to train
+- Creating new features that can enhance the predictive power of the machine learning model
+
 
 ## Setting the environment up
 
-Let's start loading the main packages to use in this section.
+To setting the `R` environment up we just need to apply the following 4 steps:
+
+1. Loading the packages to use.
 
 ```{r}
 library(here)
@@ -29,7 +43,13 @@ library(dplyr)
 library(arrow)
 ```
 
-Then we can import all 2022 trips to `arrow` to explore then using the in disk capacities that has the big data tool.
+2. Sourcing some custom functions created to avoid repeating myself.
+
+```{r}
+source(here("R/01-custom-functions.R"))
+```
+
+3. Creating an Arrow connection object to perform some manipulations in disk before taking the data into the RAM memory.
 
 ```{r}
 NycTrips2022 <- 
@@ -44,27 +64,18 @@ NycTrips2022 <-
   select(-hvfhs_license_num)
 ```
 
-## Exploring variable distribution
-
-The purpose of this section is to:
-
-- Understand the meaning of each variable and compare results with current domain knowledge
-- Find hidden missing values
-- Find usual values
-
-### Categorical variables distribution
-
-As we are going to count every categorical variable let's create a simple function to avoid DRY.
+4. Importing the zone code description.
 
 ```{r}
-count_pct <- function(x, ..., sort = TRUE){
-  
-  count(x, ..., sort = sort) |>
-  collect() |>
-  mutate(pct = n / sum(n))
-  
-}
+ZoneCodes <- fread(
+  here("data/taxi_zone_lookup.csv"),
+  colClasses = c("integer", "character", "character", "character")
+)
 ```
+
+## Exploring distribution of each individual variable
+
+### Categorical variables
 
 - `company`: The majority number of trips are done by *Uber* (HV003) and the rest for *Lyft*.
 
@@ -114,34 +125,17 @@ NycTrips2022 |> count_pct(wav_request_flag)
 NycTrips2022 |> count_pct(wav_match_flag)
 ```
 
-Now we take a look the start end points
+To explore the distribution of trips based start and end locations let's define a table and then explain the analysis into more plots.
 
 ```{r}
-
-ZoneCodes <- fread(
-  here("data/taxi_zone_lookup.csv"),
-  colClasses = c("integer", "character", "character", "character")
-)
-
-
 TripsLocationSummary <-
   NycTrips2022 |>
   count(PULocationID, DOLocationID) |>
   collect() |>
-  as.data.table() |>
-    (\(dt) ZoneCodes[, .(end_id = LocationID,
-                       end_borough = Borough,
-                       end_zone = Zone,
-                       end_service_zone = service_zone)
-  ][dt, on = c("end_id" = "DOLocationID")])() |>
-  (\(dt) ZoneCodes[, .(start_id = LocationID,
-                       start_borough = Borough,
-                       start_zone = Zone,
-                       start_service_zone = service_zone)
-  ][dt, on = c("start_id" = "PULocationID")])()
-
+  join_zones(zone_tb = ZoneCodes)
 ```
 
+- `start_borough` and `end_borough`: 
 
 ```{r}
 TripsLocationSummary[, .(n = sum(n)),
@@ -170,96 +164,3 @@ TripsLocationSummary[, .(n = sum(n)),
         axis.title = element_text(face = "italic"))
 ```
 
-
-At this point is important to explain that in NYC cabs operate different depending on its color:
-
-- **Yellow cabs**: They have no restrictions when it comes to travel.
-
-- **Green cabs**: They can only pick up passengers in Harlem (south of West 110th St and East 96th St), Queens, the Bronx and Brooklyn — excluding the airports but **can drop passengers off anywhere** in New York City.
-
-> **Uber** and **Lyft** doesn't any restriction at traveling.
-
-![Zone map from NYC Taxi & Limousine Commission (TLC)](assets/01-Green-Yellow-Zones.png)
-
-
-- `start_Zone` and `end_Zone` represent a diverse number of places as theirs higher proportion of trips is lower then 3% with the exception of the "N/A" value that needs to be **erased and inputed**.
-
-```{r}
-plot_chr_count(DecodedTrips, 
-               count_var = c("start_Zone",
-                             "end_Zone"),
-               breaks_width = 3e6,
-               wrap_scales = "free_y")
-```
-
-
-### Numerical variables distribution
-
-Before checking any distribution chart let's the summary statistics of numeric vars.
-
-```{r}
-NumericSummary <-
-  DecodedTrips[, .SD, .SDcols = is.numeric] |>
-  skimr::skim()
-  
-NumericSummary
-```
-
-After checking that statistics we can say that:
-
-1. Numeric values has very different dimensions. So we will need to scale them before applying any method based on distances like PCA.
-
-2. Variables have **very high variability** as of theirs coefficient of variation are higher 0.50, specially for `airport_fee`, `tolls` and `tips`.
-
-```{r}
-as.data.table(NumericSummary)[, .(variable = skim_variable,
-                   CV = numeric.sd/numeric.mean)
-  ][, variable := fct_reorder(variable, CV)] |>
-  ggplot(aes(CV, variable))+
-  geom_col(fill = "forestgreen", alpha = 0.75)+
-  labs(title = "Coefficient of variation summary")+
-  theme(plot.title = element_text(face = "bold"))
-```
-
-```{r}
-set.seed(2525)
-ggplot(DecodedTrips[sample.int(nrow(DecodedTrips), 5e4)], aes("1",base_passenger_fare)) +
-  geom_boxplot()
-set.seed(NULL)
-```
-
-
-3. `base_passenger_fare` and `driver_pay` present some problems as some values a really low and event 0. Checking in internet we found that not Uber's cars present base fare, what the don't see any reason for the negative values, so it's important to if this is a data collection problem or an operational problem
-
-![](assets/02-uber-base-fare.png)
-
-### Datetime variables distribution
-
-As we can see below of the date time data is complete excepting the `on_scene_datetime` which by definition measures the time when driver arrived at the pick-up location for accessible vehicles. 70% of NYC aren't accessible vehicles so there is some thing wrong with that description, so will be remove that column as the `pickup_datetime` also measures the same time without missing values.
-
-```{r}
-DatetimeSummary <-
-  DecodedTrips[, .SD, .SDcols = is.POSIXct] |>
-  skimr::skim()
-
-DatetimeSummary
-```
-
-```{r}
-# ggplot cannot support plotting 10 million points
-set.seed(5184)
-ggplot(DecodedTrips[!is.na(on_scene_datetime), 
-                    .SD[sample.int(.N, 1e3)]],
-       aes(on_scene_datetime, pickup_datetime))+
-  geom_point(alpha = 0.08)
-set.seed(NULL)
-```
-
-## References
-
-- Taxi color: https://newyorksimply.com/green-taxis-nyc-cab/
-
-- Uber base fare:
-http://taxihowmuch.com/location/new-york-ny-us
-
-- Number of accesible vehicles: https://www.rollxvans.com/handicap-accesible-taxis-nyc/#:~:text=Currently%20there%20are%20upwards%20of%2013%2C000%20taxis%20in,231%20of%20them%20are%20wheelchair%20accessible%20vehicle%20s.

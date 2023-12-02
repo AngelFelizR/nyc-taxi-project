@@ -1,110 +1,178 @@
-# Exploratory Data Analysis
+Exploratory Data Analysis (EDA) of 2022 High Volume For-Hire Vehicles
+================
 
-- [Setting the environment up](#setting-the-environment-up)
-- [Exploring variable distribution](#exploring-variable-distribution)
-  - [Categorical variables
-    distribution](#categorical-variables-distribution)
-  - [Numerical variables
-    distribution](#numerical-variables-distribution)
-  - [Datetime variables distribution](#datetime-variables-distribution)
-- [References](#references)
+- <a href="#setting-the-environment-up"
+  id="toc-setting-the-environment-up">Setting the environment up</a>
+- <a href="#exploring-distribution-of-each-individual-variable"
+  id="toc-exploring-distribution-of-each-individual-variable">Exploring
+  distribution of each individual variable</a>
+  - <a href="#categorical-variables"
+    id="toc-categorical-variables">Categorical variables</a>
+
+After completing the [business
+understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding)
+step, we have a clear objective in mind and an initial description for
+each column the [raw
+data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data),
+we are ready to perform the *data understanding* by performing an EDA
+with the following steps:
+
+1.  Examining the distribution of each individual variable by counting
+    the categorical variables and creating histograms or box plots for
+    numerical variables
+2.  Confirming domain knowledge relations by creating visualization with
+    2 or more variables
+3.  Taking a subset of the data to fit in RAM
+4.  Defining the target variable and confirming its distribution
+5.  Exploring correlations between predictors by using a correlation
+    matrix or running a PCA
+6.  Removing high correlated predictors
+7.  Exploring correlations between the target and predictors creating a
+    correlation funnel and some scatter plots.
+
+After completing this process, we will have the following outcomes:
+
+- Confirming the meaning of each variable
+- Ensuring data quality by finding missing values and
+- Identifying the best models to train
+- Creating new features that can enhance the predictive power of the
+  machine learning model
 
 ## Setting the environment up
 
-1.  Loading main packages
+To setting the `R` environment up we just need to apply the following 4
+steps:
+
+1.  Loading the packages to use.
 
 ``` r
 library(here)
 library(data.table)
-library(lubridate)
 library(ggplot2)
 library(scales)
 library(forcats)
-library(tidymodels)
-
-source(here("R/02-custom-functions.R"))
-source(here("R/03-custom-values.R"))
-theme_set(custom_theme)
+library(dplyr)
+library(arrow)
 ```
 
-2.  Importing zone codes
+2.  Sourcing some custom functions created to avoid repeating myself.
+
+``` r
+source(here("R/01-custom-functions.R"))
+```
+
+3.  Creating an Arrow connection object to perform some manipulations in
+    disk before taking the data into the RAM memory.
+
+``` r
+NycTrips2022 <- 
+  here("data/trip-data/year=2022") |>
+  open_dataset() |>
+  mutate(company = case_when(
+    hvfhs_license_num == "HV0002" ~ "Juno",
+    hvfhs_license_num == "HV0003" ~ "Uber",
+    hvfhs_license_num == "HV0004" ~ "Via",
+    hvfhs_license_num == "HV0005" ~ "Lyft"
+  )) |>
+  select(-hvfhs_license_num)
+```
+
+4.  Importing the zone code description.
 
 ``` r
 ZoneCodes <- fread(
   here("data/taxi_zone_lookup.csv"),
-  select = ZoneCodesColTypes
+  colClasses = c("integer", "character", "character", "character")
 )
 ```
 
-3.  Importing and decoding training data.
+## Exploring distribution of each individual variable
 
-``` r
-DecodedTrips <- fst::read_fst(
-  path = here("data/TripDataTrain.fst"),
-  as.data.table = TRUE
-) |>
-  decode_zones(ZoneCodes) |>
-  decode_business()
-
-setnames(DecodedTrips, "bcf","back_car_fund")
-```
-
-## Exploring variable distribution
-
-The purpose of this section is to:
-
-- Understand the meaning of each variable and compare results with
-  current domain knolege
-- Find hidden missing values
-- Find usual values
-
-### Categorical variables distribution
+### Categorical variables
 
 - `company`: The majority number of trips are done by *Uber* (HV003) and
   the rest for *Lyft*.
 
 ``` r
-plot_chr_count(DecodedTrips, "company")
+NycTrips2022 |> count_pct(company)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-4-1.png)
+    # A tibble: 2 × 3
+      company         n   pct
+      <chr>       <int> <dbl>
+    1 Uber    153847310 0.724
+    2 Lyft     58568773 0.276
 
 - `dispatching_base_num`: This column doesn’t show much information, so
   we will **erase** this column as it doesn’t show any useful
   information.
 
 ``` r
-plot_chr_count(DecodedTrips, "dispatching_base_num")
+NycTrips2022 |> count_pct(dispatching_base_num)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-5-1.png)
+    # A tibble: 29 × 3
+       dispatching_base_num         n       pct
+       <chr>                    <int>     <dbl>
+     1 B03404               153732577 0.724    
+     2 B03406                58568773 0.276    
+     3 B02764                   54512 0.000257 
+     4 B02872                    6078 0.0000286
+     5 B02395                    4789 0.0000225
+     6 B02882                    4097 0.0000193
+     7 B02835                    3936 0.0000185
+     8 B02870                    3887 0.0000183
+     9 B02887                    3684 0.0000173
+    10 B02876                    3607 0.0000170
+    # ℹ 19 more rows
 
 - `originating_base_num`: This column doesn’t show much information, so
   we will **erase** this column as it doesn’t show any useful
   information.
 
 ``` r
-plot_chr_count(DecodedTrips, "originating_base_num")
+NycTrips2022 |> count_pct(originating_base_num)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-6-1.png)
+    # A tibble: 37 × 3
+       originating_base_num         n       pct
+       <chr>                    <int>     <dbl>
+     1 B03404               153730161 0.724    
+     2 <NA>                  58498724 0.275    
+     3 B03406                   71481 0.000337 
+     4 B02764                   54511 0.000257 
+     5 B02872                    6078 0.0000286
+     6 B02395                    4789 0.0000225
+     7 B02882                    4097 0.0000193
+     8 B02835                    3936 0.0000185
+     9 B02870                    3887 0.0000183
+    10 B02887                    3684 0.0000173
+    # ℹ 27 more rows
 
 - `shared_request_flag`: Most of passengers don’t agree to a
   shared/pooled ride.
 
 ``` r
-plot_chr_count(DecodedTrips, "shared_request_flag")
+NycTrips2022 |> count_pct(shared_request_flag)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-7-1.png)
+    # A tibble: 2 × 3
+      shared_request_flag         n     pct
+      <chr>                   <int>   <dbl>
+    1 N                   210564721 0.991  
+    2 Y                     1851362 0.00872
 
 - `shared_match_flag`: Shows that actually fewer trips were shared.
 
 ``` r
-plot_chr_count(DecodedTrips, "shared_match_flag")
+NycTrips2022 |> count_pct(shared_match_flag)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-8-1.png)
+    # A tibble: 2 × 3
+      shared_match_flag         n     pct
+      <chr>                 <int>   <dbl>
+    1 N                 211916075 0.998  
+    2 Y                    500008 0.00235
 
 - `access_a_ride_flag`: *Uber* isn’t reporting whether their trips were
   administered on behalf of the Metropolitan Transportation Authority
@@ -112,231 +180,79 @@ plot_chr_count(DecodedTrips, "shared_match_flag")
   column as it doesn’t show any useful information.
 
 ``` r
-plot_chr_count(DecodedTrips, "access_a_ride_flag")
+NycTrips2022 |> count_pct(company, access_a_ride_flag)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-9-1.png)
-
-``` r
-DecodedTrips[, .N,
-              by = c("company",
-                     "access_a_ride_flag")]
-```
-
-       company access_a_ride_flag       N
-    1:    Uber                    7282646
-    2:    Lyft                  N 2717354
+    # A tibble: 2 × 4
+      company access_a_ride_flag         n   pct
+      <chr>   <chr>                  <int> <dbl>
+    1 Uber    " "                153847310 0.724
+    2 Lyft    "N"                 58568773 0.276
 
 - `wav_request_flag`: It’s really unusual for a passager to request a
   wheelchair-accessible vehicle.
 
 ``` r
-plot_chr_count(DecodedTrips, "wav_request_flag")
+NycTrips2022 |> count_pct(wav_request_flag)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-10-1.png)
-
-``` r
-DecodedTrips[, .N, "wav_request_flag"]
-```
-
-       wav_request_flag       N
-    1:                N 9984507
-    2:                Y   15493
+    # A tibble: 2 × 3
+      wav_request_flag         n     pct
+      <chr>                <int>   <dbl>
+    1 N                212142808 0.999  
+    2 Y                   273275 0.00129
 
 - `wav_match_flag`: 7% of trips took place in wheelchair-accessible
   vehicle which implies that there is more offers than demand.
 
 ``` r
-plot_chr_count(DecodedTrips, "wav_match_flag")
+NycTrips2022 |> count_pct(wav_match_flag)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-11-1.png)
+    # A tibble: 2 × 3
+      wav_match_flag         n    pct
+      <chr>              <int>  <dbl>
+    1 N              199779404 0.941 
+    2 Y               12636679 0.0595
 
-- For `start_Borough` and `end_Borough` it’s weird to start or end the
-  trips in Stalen Island or the EWR Airport.
+To explore the distribution of trips based start and end locations let’s
+define a table and then explain the analysis into more plots.
 
 ``` r
-plot_chr_count(DecodedTrips, 
-               count_var = c("start_Borough",
-                             "end_Borough"),
-               breaks_width = 2e6)
+TripsLocationSummary <-
+  NycTrips2022 |>
+  count(PULocationID, DOLocationID) |>
+  collect() |>
+  join_zones(zone_tb = ZoneCodes)
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-12-1.png)
-
-- For `start_service_zone` and `end_service_zone` It’s weird to start or
-  end the trips in any Airports. For consistency we will **relabel EWR
-  as Airports**.
+- `start_borough` and `end_borough`:
 
 ``` r
-plot_chr_count(DecodedTrips, 
-               count_var = c("start_service_zone",
-                             "end_service_zone"),
-               breaks_width = 2e6)
+TripsLocationSummary[, .(n = sum(n)),
+                     by = c("start_borough", "end_borough")
+  ][order(n)
+  ][, c("start_borough", "end_borough") := 
+      lapply(.SD, \(x) factor(x, levels = unique(x, fromLast = TRUE)) ),
+    .SDcols = c("start_borough", "end_borough")
+  ][, end_borough := fct_rev(end_borough)] |>
+  ggplot(aes(end_borough, start_borough))+
+  geom_tile(aes(fill = n)) +
+  geom_text(aes(label = percent(n/sum(n), accuracy = 0.01))) +
+  scale_fill_gradient(low = "white", 
+                      high = "red",
+                      labels= comma_format())+
+  scale_x_discrete(position = "top") +
+  labs(title = "Distribution of Trips by Borough in NYC 2022",
+       x = "Trip End", 
+       y = "Trip Start", 
+       fill = "Number of Trips") +
+  theme_classic() +
+  theme(plot.title = element_text(face = "bold"),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(face = "italic"))
 ```
 
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-13-1.png)
-
-At this point is important to explain that in NYC cabs operate different
-depending on its color:
-
-- **Yellow cabs**: They have no restrictions when it comes to travel.
-
-- **Green cabs**: They can only pick up passengers in Harlem (south of
-  West 110th St and East 96th St), Queens, the Bronx and Brooklyn —
-  excluding the airports but **can drop passengers off anywhere** in New
-  York City.
-
-> **Uber** and **Lyft** doesn’t any restriction at traveling.
-
-![Zone map from NYC Taxi & Limousine Commission
-(TLC)](assets/01-Green-Yellow-Zones.png)
-
-- `start_Zone` and `end_Zone` represent a diverse number of places as
-  theirs higher proportion of trips is lower then 3% with the exception
-  of the “N/A” value that needs to be **erased and inputed**.
-
-``` r
-plot_chr_count(DecodedTrips, 
-               count_var = c("start_Zone",
-                             "end_Zone"),
-               breaks_width = 3e6,
-               wrap_scales = "free_y")
-```
-
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-14-1.png)
-
-### Numerical variables distribution
-
-Before checking any distribution chart let’s the summary statistics of
-numeric vars.
-
-``` r
-NumericSummary <-
-  DecodedTrips[, .SD, .SDcols = is.numeric] |>
-  skimr::skim()
-  
-NumericSummary
-```
-
-|                                                  |                             |
-|:-------------------------------------------------|:----------------------------|
-| Name                                             | DecodedTrips\[, .SD, .SDco… |
-| Number of rows                                   | 10000000                    |
-| Number of columns                                | 10                          |
-| Key                                              | NULL                        |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_   |                             |
-| Column type frequency:                           |                             |
-| numeric                                          | 10                          |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ |                             |
-| Group variables                                  | None                        |
-
-Data summary
-
-**Variable type: numeric**
-
-| skim_variable        | n_missing | complete_rate |    mean |     sd |     p0 |    p25 |    p50 |     p75 |     p100 | hist  |
-|:---------------------|----------:|--------------:|--------:|-------:|-------:|-------:|-------:|--------:|---------:|:------|
-| trip_miles           |         0 |             1 |    4.88 |   5.67 |   0.00 |   1.54 |   2.89 |    6.03 |   351.17 | ▇▁▁▁▁ |
-| trip_time            |         0 |             1 | 1120.47 | 777.34 |   0.00 | 579.00 | 921.00 | 1438.00 | 43024.00 | ▇▁▁▁▁ |
-| base_passenger_fare  |         0 |             1 |   22.47 |  18.64 | -69.50 |  10.86 |  17.08 |   27.46 |  1575.43 | ▇▁▁▁▁ |
-| tolls                |         0 |             1 |    1.04 |   3.77 |   0.00 |   0.00 |   0.00 |    0.00 |   177.82 | ▇▁▁▁▁ |
-| back_car_fund        |         0 |             1 |    0.71 |   0.63 |   0.00 |   0.33 |   0.51 |    0.85 |    64.71 | ▇▁▁▁▁ |
-| sales_tax            |         0 |             1 |    1.90 |   1.53 |   0.00 |   0.93 |   1.45 |    2.37 |    97.79 | ▇▁▁▁▁ |
-| congestion_surcharge |         0 |             1 |    1.11 |   1.35 |   0.00 |   0.00 |   0.00 |    2.75 |     5.50 | ▇▁▆▁▁ |
-| airport_fee          |         0 |             1 |    0.17 |   0.63 |   0.00 |   0.00 |   0.00 |    0.00 |     6.90 | ▇▁▁▁▁ |
-| tips                 |         0 |             1 |    0.99 |   2.86 |   0.00 |   0.00 |   0.00 |    0.00 |   181.19 | ▇▁▁▁▁ |
-| driver_pay           |         0 |             1 |   17.70 |  15.03 | -62.05 |   8.04 |  13.29 |   22.19 |  1285.04 | ▇▁▁▁▁ |
-
-After checking that statistics we can say that:
-
-1.  Numeric values has very different dimensions. So we will need to
-    scale them before applying any method based on distances like PCA.
-
-2.  Variables have **very high variability** as of theirs coefficient of
-    variation are higher 0.50, specially for `airport_fee`, `tolls` and
-    `tips`.
-
-``` r
-as.data.table(NumericSummary)[, .(variable = skim_variable,
-                   CV = numeric.sd/numeric.mean)
-  ][, variable := fct_reorder(variable, CV)] |>
-  ggplot(aes(CV, variable))+
-  geom_col(fill = "forestgreen", alpha = 0.75)+
-  labs(title = "Coefficient of variation summary")+
-  theme(plot.title = element_text(face = "bold"))
-```
-
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-16-1.png)
-
-3.  `base_passenger_fare` and `driver_pay` present some problems as some
-    values a really low and event 0. Checking in internet we found that
-    not Uber’s cars present base fare, what the don’t see any reason for
-    the negative values.
-
-![](assets/02-uber-base-fare.png)
-
-### Datetime variables distribution
-
-As we can see below of the date time data is complete excepting the
-`on_scene_datetime` which by definition measures the time when driver
-arrived at the pick-up location for accessible vehicles. 70% of NYC
-aren’t accessible vehicles so there is some thing wrong with that
-description, so will be remove that column as the `pickup_datetime` also
-measures the same time without missing values.
-
-``` r
-DatetimeSummary <-
-  DecodedTrips[, .SD, .SDcols = is.POSIXct] |>
-  skimr::skim()
-
-DatetimeSummary
-```
-
-|                                                  |                             |
-|:-------------------------------------------------|:----------------------------|
-| Name                                             | DecodedTrips\[, .SD, .SDco… |
-| Number of rows                                   | 10000000                    |
-| Number of columns                                | 4                           |
-| Key                                              | NULL                        |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_   |                             |
-| Column type frequency:                           |                             |
-| POSIXct                                          | 4                           |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ |                             |
-| Group variables                                  | None                        |
-
-Data summary
-
-**Variable type: POSIXct**
-
-| skim_variable     | n_missing | complete_rate | min                 | max                 | median              | n_unique |
-|:------------------|----------:|--------------:|:--------------------|:--------------------|:--------------------|---------:|
-| request_datetime  |         0 |          1.00 | 2022-12-31 19:38:37 | 2023-03-31 20:05:00 | 2023-02-16 11:52:19 |  5225266 |
-| on_scene_datetime |   2713591 |          0.73 | 2022-12-31 19:57:23 | 2023-03-31 19:59:52 | 2023-02-15 14:26:18 |  4435202 |
-| pickup_datetime   |         0 |          1.00 | 2022-12-31 20:00:01 | 2023-03-31 19:59:59 | 2023-02-16 11:57:34 |  5254993 |
-| dropoff_datetime  |         0 |          1.00 | 2022-12-31 20:04:38 | 2023-03-31 22:27:33 | 2023-02-16 12:20:47 |  5250094 |
-
-``` r
-# ggplot cannot support plotting 10 million points
-set.seed(5184)
-ggplot(DecodedTrips[!is.na(on_scene_datetime), 
-                    .SD[sample.int(.N, 1e3)]],
-       aes(on_scene_datetime, pickup_datetime))+
-  geom_point(alpha = 0.08)
-```
-
-![](01-exploratory-data-analysis_files/figure-commonmark/unnamed-chunk-18-1.png)
-
-``` r
-set.seed(NULL)
-```
-
-## References
-
-- Taxi color: https://newyorksimply.com/green-taxis-nyc-cab/
-
-- Uber base fare: http://taxihowmuch.com/location/new-york-ny-us
-
-- Number of accesible vehicles:
-  https://www.rollxvans.com/handicap-accesible-taxis-nyc/#:~:text=Currently%20there%20are%20upwards%20of%2013%2C000%20taxis%20in,231%20of%20them%20are%20wheelchair%20accessible%20vehicle%20s.
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)
