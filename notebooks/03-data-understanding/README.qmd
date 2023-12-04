@@ -12,9 +12,9 @@ execute:
 After completing the [business understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding) step, we have a clear objective in mind and an initial description for each column the [raw data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data), we are ready to perform the *data understanding* by performing an EDA with the following steps:
 
 1. Examining the distribution of each individual variable by counting the categorical variables and creating histograms or box plots for numerical variables
-2. Confirming domain knowledge relations by creating visualization with 2 or more variables
-3. Taking a subset of the data to fit in RAM
-4. Defining the target variable and confirming its distribution
+2. Defining the target variable and confirming its distribution
+3. Confirming domain knowledge relations by creating visualization with 2 or more variables
+4. Taking a subset of the data to fit in RAM
 5. Exploring correlations between predictors by using a correlation matrix or running a PCA
 6. Removing high correlated predictors
 7. Exploring correlations between the target and predictors creating a correlation funnel and some scatter plots.
@@ -43,7 +43,9 @@ library(dplyr)
 library(arrow)
 ```
 
-2. Sourcing some custom functions created to avoid repeating myself.
+2. Sourcing the following custom functions to avoid repeating myself:
+  - `count_pct`: It counts the number rows where each unique value repeated in the columns selected arranging there results in descent order and adds a percentage column after collecting the results from `arrow`.
+  - `join_zones`: 
 
 ```{r}
 source(here("R/01-custom-functions.R"))
@@ -83,16 +85,26 @@ ZoneCodes <- fread(
 NycTrips2022 |> count_pct(company)
 ```
 
-- `dispatching_base_num`: This column doesn't show much information, so we will **erase** this column as it doesn't show any useful information.
+- `dispatching_base_num`: For most of the trips the dispatching number is **B03404** for Uber and **B03406** related for Lyft. Uber also has other 27 dispatching number, but they are really weird to see. It can be useful if we can find some relation with the target variable.
 
 ```{r}
-NycTrips2022 |> count_pct(dispatching_base_num)
+NycTrips2022 |>
+  count_pct(company, dispatching_base_num) |>
+  as.data.table() |>
+  (\(dt) dt[, .(n_unique_code = n_distinct(dispatching_base_num),
+                n = sum(n),
+                pct = sum(pct) |> round(4L)),
+            by = .(company,
+                   common = pct > 0.01)
+          ][order(-n)] )()
 ```
 
-- `originating_base_num`: This column doesn't show much information, so we will **erase** this column as it doesn't show any useful information.
+- `originating_base_num`: This column has the same information as `dispatching_base_num` or has missing values, so we don't need to use it.
 
 ```{r}
-NycTrips2022 |> count_pct(originating_base_num)
+NycTrips2022 |>
+  count_pct(company,
+            same_id = originating_base_num == dispatching_base_num)
 ```
 
 - `shared_request_flag`: Most of passengers don't agree to a shared/pooled ride.
