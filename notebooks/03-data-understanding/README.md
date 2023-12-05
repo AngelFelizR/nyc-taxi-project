@@ -289,11 +289,10 @@ TripsZoneDistribution[, .(n = sum(n)),
 Let’s remove list the ids that we don’t need.
 
 ``` r
-ZoneIdsToRemove <-
-  TripsZoneDistribution[start_borough %chin% c("Staten Island", "Unknown", "EWR") |
-                          end_borough %chin% c("Staten Island", "Unknown", "EWR"),
-                        .(id = c(start_id, end_id))
-  ][order(id), unique(id)]
+TripsZoneValidDistribution <- TripsZoneDistribution[
+  !start_borough %chin% c("Staten Island", "Unknown", "EWR") &
+    !end_borough %chin% c("Staten Island", "Unknown", "EWR")
+]
 ```
 
 - `start_service_zone` and `end_service_zone`: 52% of the trips take
@@ -301,10 +300,8 @@ ZoneIdsToRemove <-
   and only small fraction goes to the *Airports*.
 
 ``` r
-TripsZoneDistribution[!start_borough %chin% c("Staten Island", "Unknown", "EWR") &
-                        !end_borough %chin% c("Staten Island", "Unknown", "EWR"), 
-                      .(n = sum(n)),
-                      by = c("start_service_zone", "end_service_zone")
+TripsZoneValidDistribution[, .(n = sum(n)),
+                           by = c("start_service_zone", "end_service_zone")
 ][order(n)
 ][, c("start_service_zone", "end_service_zone") := 
     lapply(.SD, \(x) factor(x, levels = unique(x, fromLast = TRUE)) ),
@@ -334,35 +331,34 @@ TripsZoneDistribution[!start_borough %chin% c("Staten Island", "Unknown", "EWR")
 - `start_zone` and `end_zone`:
 
 ``` r
-TripsZoneDistribution[!start_borough %chin% c("Staten Island", "Unknown", "EWR") &
-                        !end_borough %chin% c("Staten Island", "Unknown", "EWR"), 
-                      .(n = sum(n)),
-                      by = c("start_borough", 
-                             "start_zone", 
-                             "end_borough",
-                             "end_zone")
-][,`:=`(same_borough = start_borough == end_borough,
-        same_zone = fifelse(start_zone == end_zone, "Same Zone", "Diff Zone"),
-        trip = paste0(start_zone,
-                      fifelse(start_zone == end_zone,
-                              "",
-                              paste0(" - ", end_zone)),
-                      "_",start_zone == end_zone) |>  reorder(n))
-][order(-n), 
-  .SD[1:10],
-  by = "same_zone"] |>
-  ggplot(aes(n, trip))+
-  geom_col(aes(fill = same_borough))+
-  scale_y_discrete(labels = \(x) gsub("_.+$","", x))+
+TripsZoneValidDistribution[, .(end_trips = sum(n)),
+                           by =  .(borough = end_borough, 
+                                   zone = end_zone)
+][TripsZoneValidDistribution[, .(start_trips = sum(n)),
+                             by =  .(borough = start_borough, 
+                                     zone = start_zone)],
+  on = c("borough", "zone"),
+  nomatch = 0
+][, borough := fct_reorder(borough, -end_trips, .fun = sum, na.rm = TRUE)
+][order(-end_trips), 
+  .SD[1:6],
+  by = "borough"] |>
+  ggplot(aes(start_trips, end_trips))+
+  geom_point(aes(color = borough),
+             size = 3.5)+
+  geom_abline()+
+  ggrepel::geom_text_repel(aes(label = zone),
+                           size = 3)+
   scale_x_continuous(labels = comma_format())+
-  facet_wrap(~same_zone, ncol = 1, scales = "free")+
-  theme_light() +
-  theme(plot.title = element_text(face = "bold"),
-        legend.position = "none",
-        axis.ticks = element_blank(),
-        axis.line = element_blank(),
-        axis.text = element_text(color = "black"),
-        axis.title = element_text(face = "italic"))
+  scale_y_continuous(labels = comma_format())+
+  facet_wrap(~borough, scales = "free")+
+  labs(title = "Top 6 Most Important Zones by Borough",
+       color = "Borough",
+       x = "Number of Trips Starting",
+       y = "Number of Trips Ending")+
+  theme_light()+
+  theme(legend.position = "top",
+        title = element_text(face = "bold"))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-17-1.png)
