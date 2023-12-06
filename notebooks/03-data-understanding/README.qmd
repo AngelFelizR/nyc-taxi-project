@@ -352,3 +352,27 @@ Based on the results, we can highlight the next points:
 1. The airports present in Queens, *LaGuardia Airport* and *JFK Airport*, have many more trips going to the airport than going out of airport. This might happen due that there are more transportation options like other taxis, shuttles, and public transportation.
 
 2. The remaining zones, *Jackson Heights*, *East Village* and *TriBeCa/Civic Center*, are residential zones with a variety of public transportation options.
+
+### Time variables
+
+- `month`:
+- `request_datetime`:
+- `on_scene_datetime`:
+- `pickup_datetime`:
+- `dropoff_datetime`:
+
+
+### Numerical variables
+
+- `trip_miles`:
+- `trip_time`:
+- `base_passenger_fare`:
+- `tolls`:
+- `bcf`:
+- `sales_tax`:
+- `congestion_surcharge`:
+- `airport_fee`:
+- `tips`:
+- `driver_pay`:
+
+
