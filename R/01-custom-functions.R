@@ -22,7 +22,8 @@ join_zones <- function(x, zone_tb){
                        start_borough = Borough,
                        start_zone = Zone,
                        start_service_zone = service_zone)
-    ][dt, on = c("start_id" = "PULocationID")])()
+    ][dt, on = c("start_id" = "PULocationID")
+    ][, !c("start_id", "end_id")])()
 
 }
 
