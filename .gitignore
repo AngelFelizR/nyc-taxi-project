@@ -9,3 +9,5 @@
 *.csv
 data/*.fst
 data/*.pdf
+
+CRISP-DM_Phases/temp.qmd

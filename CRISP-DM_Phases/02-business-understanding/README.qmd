@@ -60,9 +60,11 @@ digraph SIPOC {
     }
     subgraph cluster_P {
         label="Process";
-        P1 [label="Drivers pick the customer up"];
-        P2 [label="Drivers drive to destination"];
-        P3 [label="Drivers leave the customer\nat the end point"];
+        P1 [label="The customer request a taxi"];
+        P2 [label="The driver arrived at\nthe pick-up location"];
+        P3 [label="Drivers pick the customer up"];
+        P4 [label="Drivers drive to destination"];
+        P5 [label="Drivers leave the customer\nat the end point"];
     }
     subgraph cluster_O {
         label="Outputs";
@@ -81,6 +83,8 @@ digraph SIPOC {
     O1 -> C1 [style=invis];
     P1 -> P2 [constraint=false];
     P2 -> P3 [constraint=false];
+    P3 -> P4 [constraint=false];
+    P4 -> P5 [constraint=false];
 }
 
 ')
