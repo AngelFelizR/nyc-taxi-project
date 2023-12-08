@@ -8,6 +8,9 @@ Exploratory Data Analysis (EDA) of 2022 High Volume For-Hire Vehicles
   distribution of each individual variable</a>
   - <a href="#categorical-variables"
     id="toc-categorical-variables">Categorical variables</a>
+  - <a href="#time-variables" id="toc-time-variables">Time variables</a>
+  - <a href="#numerical-variables" id="toc-numerical-variables">Numerical
+    variables</a>
 
 After completing the [business
 understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding)
@@ -51,12 +54,15 @@ library(data.table)
 library(ggplot2)
 library(scales)
 library(forcats)
+library(lubridate)
 library(dplyr)
 library(arrow)
 ```
 
 2.  Sourcing the following custom functions to avoid repeating myself:
 
+- `glimpse`: Adding a fast method to print the basic structure of an
+  `arrow_dplyr_query` object.
 - `count_pct`: It counts the number rows where each unique value
   repeated in the columns selected arranging there results in descent
   order and adds a percentage column after collecting the results from
@@ -84,16 +90,60 @@ NycTrips2022 <-
     hvfhs_license_num == "HV0005" ~ "Lyft"
   )) |>
   select(-hvfhs_license_num)
+
+
+glimpse(NycTrips2022)
 ```
+
+    FileSystemDataset (query)
+    212,416,083 rows x 25 columns
+
+    dispatching_base_num: string
+    originating_base_num: string
+    request_datetime: timestamp[us]
+    on_scene_datetime: timestamp[us]
+    pickup_datetime: timestamp[us]
+    dropoff_datetime: timestamp[us]
+    PULocationID: int64
+    DOLocationID: int64
+    trip_miles: double
+    trip_time: int64
+    base_passenger_fare: double
+    tolls: double
+    bcf: double
+    sales_tax: double
+    congestion_surcharge: double
+    airport_fee: double
+    tips: double
+    driver_pay: double
+    shared_request_flag: string
+    shared_match_flag: string
+    access_a_ride_flag: string
+    wav_request_flag: string
+    wav_match_flag: string
+    month: int32
+    company: string
 
 4.  Importing the zone code description.
 
 ``` r
 ZoneCodes <- fread(
   here("data/taxi_zone_lookup.csv"),
-  colClasses = c("integer", "character", "character", "character")
+  colClasses = c("integer",
+                 "character",
+                 "character",
+                 "character")
 )
+
+glimpse(ZoneCodes)
 ```
+
+    Rows: 265
+    Columns: 4
+    $ LocationID   <int> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17…
+    $ Borough      <chr> "EWR", "Queens", "Bronx", "Manhattan", "Staten Island", "…
+    $ Zone         <chr> "Newark Airport", "Jamaica Bay", "Allerton/Pelham Gardens…
+    $ service_zone <chr> "EWR", "Boro Zone", "Boro Zone", "Yellow Zone", "Boro Zon…
 
 5.  Counting the number of trips for each code, collecting and
     translating the zone codes.
@@ -104,7 +154,19 @@ TripsZoneDistribution <-
   count(PULocationID, DOLocationID) |>
   collect() |>
   join_zones(zone_tb = ZoneCodes)
+
+glimpse(TripsZoneDistribution)
 ```
+
+    Rows: 65,445
+    Columns: 7
+    $ start_borough      <chr> "Manhattan", "Manhattan", "Manhattan", "Manhattan",…
+    $ start_zone         <chr> "Murray Hill", "Upper East Side South", "Yorkville …
+    $ start_service_zone <chr> "Yellow Zone", "Yellow Zone", "Yellow Zone", "Yello…
+    $ end_borough        <chr> "Manhattan", "Manhattan", "Manhattan", "Manhattan",…
+    $ end_zone           <chr> "Midtown Center", "Midtown Center", "Sutton Place/T…
+    $ end_service_zone   <chr> "Yellow Zone", "Yellow Zone", "Yellow Zone", "Yello…
+    $ n                  <int> 65271, 87040, 18209, 34465, 17883, 11167, 16980, 21…
 
 ## Exploring distribution of each individual variable
 
@@ -470,3 +532,214 @@ Based on the results, we can highlight the next points:
 2.  The remaining zones, *Jackson Heights*, *East Village* and
     *TriBeCa/Civic Center*, are residential zones with a variety of
     public transportation options.
+
+### Time variables
+
+In our data the columns `request_datetime`, `on_scene_datetime`,
+`pickup_datetime`, `dropoff_datetime` and `month` are time related and
+as taxi trips takes less than a day most of the columns well be highly
+correlated. To explore the data efficiently we will explore the
+distribution of `request_datetime`and then use columns to calculate the
+time required for each process described in the **SIPOC** diagram.
+
+#### Exploring the Customer Request distribution
+
+To describe this variable, we decomposed it in different parts and count
+the number trips by each element and store the summary as a `data.table`
+to explore each part using visualizations.
+
+``` r
+RequestTimeSummary <-
+  NycTrips2022 |>
+  transmute(parquet_month = make_date(2022L, month),
+            request_datetime,
+            request_date = as_date(request_datetime)) |>
+  count(parquet_month,
+        request_month = floor_date(request_date, unit = "month"),
+        request_week = floor_date(request_date, unit = "week"),
+        request_day = day(request_date),
+        request_hour = hour(request_datetime),
+        request_weekday = wday(request_date)) |>
+  collect() |>
+  as.data.table()
+```
+
+- `month`: As we can see below most the months related to parquet files
+  match with the request, as consequence there is no reason to keep that
+  variable.
+
+``` r
+RequestTimeSummary[, .(n = sum(n)),
+                   by = c("parquet_month", "request_month")] |>
+  ggplot(aes(request_month, parquet_month))+
+  geom_abline(color = "grey60",
+              linewidth = 1.1)+
+  geom_point(aes(size = n),
+             color = "dodgerblue4")+
+  scale_x_date(date_labels = "%y-%m",
+               date_breaks = "2 months")+
+  scale_y_date(date_labels = "%y-%m",
+               date_breaks = "months")+
+  scale_size_continuous(labels = comma_format(),
+                        breaks = c(5e3, 1.5e7))+
+  labs(title = "Comparting Request and Parquet File Months",
+       x = "Trips Request Month",
+       y = "Trips per Parquet File",
+       size = "Number of Trips")+
+  coord_equal()+
+  theme_light()+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-21-1.png)
+
+In the next chart, we can see that the number trips keeps almost
+constant must of the year, but we have some fewer trips during the first
+2 months and some extra trips in October and December.
+
+``` r
+RequestTimeSummary[year(request_month) == 2022, 
+                   .(n = sum(n)),
+                   by = "request_month"] |>
+  ggplot(aes(request_month, n))+
+  geom_line(color = "grey60",
+            linewidth = 0.9)+
+  geom_point(color = "dodgerblue4",
+             size = 3)+
+  scale_x_date(date_labels = "%y-%m",
+               date_breaks = "2 months")+
+  scale_y_continuous(labels = comma_format(),
+                     breaks = breaks_width(2e6))+
+  labs(title = "Distribution of Trips by Month",
+       x = "Trips Request Month",
+       y = "Number of Trips")+
+  expand_limits(y = 0)+
+  theme_light()+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-22-1.png)
+
+By breaking the months into weeks we can confirm we have fewer trips in
+the first 2 months, in relation to October we don’t see a big change in
+he number of trips we see is that it has more weeks than November, but
+December keeps having more trips than normal in the first 2 weeks.
+
+``` r
+RequestTimeSummary[year(request_month) == 2022, 
+                   .(n = sum(n)),
+                   by = "request_week"] |>
+  ggplot(aes(request_week, n))+
+  geom_line(color = "grey60",
+            linewidth = 0.9)+
+  geom_point(color = "dodgerblue4",
+             size = 3)+
+  scale_x_date(date_labels = "%y-%m",
+               date_breaks = "month")+
+  scale_y_continuous(labels = comma_format(),
+                     breaks = breaks_width(5e5))+
+  labs(title = "Distribution of Trips by Week",
+       x = "Trips Request Week",
+       y = "Number of Trips")+
+  expand_limits(y = 0)+
+  theme_light()+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-23-1.png)
+
+I don’t understant this next result.
+
+``` r
+RequestTimeSummary[year(request_month) == 2022, 
+                   .(n = sum(n)),
+                   by = c("request_day", 
+                          "request_weekday")] |>
+  ggplot(aes(request_day, request_weekday))+
+  geom_tile(aes(fill = n))+
+  scale_fill_gradient(low = "white", 
+                      high = "dodgerblue4",
+                      labels= comma_format())+
+  scale_x_continuous(breaks = breaks_width(2, offset = 1)) +
+  scale_y_continuous(breaks = breaks_width(1)) +
+  coord_cartesian(xlim = c(1,31))+
+  labs(title = "Number of Trips by Month and Week Day",
+       fill = "Number of Trips",
+       y = "Request Week Day",
+       x = "Request Month Day") +
+  theme_classic() +
+  theme(plot.title = element_text(face = "bold"),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(face = "italic"))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-24-1.png)
+
+``` r
+compute_sec_diff <- function(x, start_time, end_time){
+  
+  transmute(x,
+            sec_diff = 
+              difftime(get(end_time), get(start_time)) |> 
+              as.character() |>
+              as.double()) |>
+    filter(!is.na(sec_diff))
+  
+}
+
+compute_boxplot <- function(x, value){
+
+    summarize(x,
+              min_value = min({{value}}),
+              q1 = quantile({{value}}, 0.25),
+              q2 = quantile({{value}}, 0.50),
+              q3 = quantile({{value}}, 0.75),
+              max_value = max({{value}})) |>
+    mutate(lower_hinge = q1 - 1.5*(q3 - q1),
+           higher_hinge = q3 + 1.5*(q3 - q1))
+  
+}
+
+
+time_names <- c(
+  "request_datetime",
+  "on_scene_datetime", 
+  "pickup_datetime",
+  "dropoff_datetime"
+)
+
+metric_name <- c(
+  "sec_to_location",
+  "sec_to_start",
+  "sec_to_end"
+)
+
+# NycTrips2022 |>
+#   compute_sec_diff(times_names[i],
+#                    times_names[i+1L]) |>
+#   compute_boxplot(sec_diff) |>
+#   mutate(metric = metric_name[i]) |>
+#   collect() |>
+#   as.data.table() 
+```
+
+### Numerical variables
+
+- `trip_miles`:
+- `trip_time`:
+- `base_passenger_fare`:
+- `tolls`:
+- `bcf`:
+- `sales_tax`:
+- `congestion_surcharge`:
+- `airport_fee`:
+- `tips`:
+- `driver_pay`:

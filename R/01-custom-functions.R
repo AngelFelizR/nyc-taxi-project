@@ -1,6 +1,53 @@
 
 # 1. EDA -----
 
+glimpse <- function(...){
+
+  UseMethod("glimpse")
+
+}
+
+glimpse.default <- function(...){
+  pillar::glimpse(...)
+}
+
+
+glimpse.arrow_dplyr_query <- function(x){
+
+  schm <- x$.data$schema
+
+
+  col_types <- sapply(
+
+    x$selected_columns,
+
+    FUN = function(expr) {
+      name <- expr$field_name
+      if (nzchar(name)) {
+        schm$GetFieldByName(name)$type$ToString()
+      }
+      else {
+        expr$type(schm)$ToString()
+      }
+
+    })
+
+
+  fields <- paste(
+    names(col_types),
+    col_types,
+    sep = ": ",
+    collapse = "\n"
+  )
+
+  cat(
+    paste0("FileSystemDataset (query)\n",
+           scales::comma(nrow(x)), " rows x ",
+           scales::comma(ncol(x)), " columns\n\n",
+           fields)
+  )
+}
+
 count_pct <- function(x, ..., sort = TRUE){
 
   count(x, ..., sort = sort) |>
