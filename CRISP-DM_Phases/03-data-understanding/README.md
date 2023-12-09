@@ -559,7 +559,7 @@ RequestTimeSummary <-
         request_week = floor_date(request_date, unit = "week"),
         request_day = day(request_date),
         request_hour = hour(request_datetime),
-        request_weekday = wday(request_date)) |>
+        request_weekday = wday(request_date, week_start = 1)) |>
   collect() |>
   as.data.table()
 ```
@@ -654,25 +654,33 @@ RequestTimeSummary[year(request_month) == 2022,
 
 ![](README_files/figure-gfm/unnamed-chunk-23-1.png)
 
-I don’t understant this next result.
+I the next chart we can see how the higher number of trips take place
+Friday and Saturdays from 17:00 to 00:00 of next days with totals over
+1.8 milions trips.
 
 ``` r
+weekdays_name <- c("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
+
 RequestTimeSummary[year(request_month) == 2022, 
                    .(n = sum(n)),
-                   by = c("request_day", 
-                          "request_weekday")] |>
-  ggplot(aes(request_day, request_weekday))+
-  geom_tile(aes(fill = n))+
+                   by = .(request_hour = 
+                            factor(request_hour) |> fct_rev(), 
+                          request_weekday =
+                            factor(weekdays_name[request_weekday], 
+                                   levels = weekdays_name))
+  ][, n_million := n/1e6 ] |>
+  ggplot(aes(request_weekday, request_hour))+
+  geom_tile(aes(fill = n),
+            color = "black",
+            linewidth = 0.005)+
+  geom_text(aes(label = comma(n_million, accuracy = 0.1, suffix = " M")))+
   scale_fill_gradient(low = "white", 
                       high = "dodgerblue4",
                       labels= comma_format())+
-  scale_x_continuous(breaks = breaks_width(2, offset = 1)) +
-  scale_y_continuous(breaks = breaks_width(1)) +
-  coord_cartesian(xlim = c(1,31))+
-  labs(title = "Number of Trips by Month and Week Day",
+  labs(title = "Number of Trips by Hour and Week Day",
        fill = "Number of Trips",
-       y = "Request Week Day",
-       x = "Request Month Day") +
+       x = "Request Week Day",
+       y = "Request Hour") +
   theme_classic() +
   theme(plot.title = element_text(face = "bold"),
         axis.ticks = element_blank(),
