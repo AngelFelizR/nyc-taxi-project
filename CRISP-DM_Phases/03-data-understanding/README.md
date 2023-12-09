@@ -11,6 +11,8 @@ Exploratory Data Analysis (EDA) of 2022 High Volume For-Hire Vehicles
   - <a href="#time-variables" id="toc-time-variables">Time variables</a>
   - <a href="#numerical-variables" id="toc-numerical-variables">Numerical
     variables</a>
+  - <a href="#variables-to-exclude" id="toc-variables-to-exclude">Variables
+    to exclude</a>
 
 After completing the [business
 understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding)
@@ -20,18 +22,12 @@ data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data),
 we are ready to perform the *data understanding* by performing an EDA
 with the following steps:
 
-1.  Examining the distribution of each individual variable by counting
-    the categorical variables and creating histograms or box plots for
-    numerical variables
-2.  Defining the target variable and confirming its distribution
-3.  Confirming domain knowledge relations by creating visualization with
-    2 or more variables
-4.  Taking a subset of the data to fit in RAM
-5.  Exploring correlations between predictors by using a correlation
-    matrix or running a PCA
-6.  Removing high correlated predictors
-7.  Exploring correlations between the target and predictors creating a
-    correlation funnel and some scatter plots.
+1.  Examining the distribution of each individual variable
+2.  Defining the target variable and exploring its distribution
+3.  Taking a subset of the data to fit in RAM
+4.  Preparing the data for modeling
+5.  Defining the main characteristics of high paying trips
+6.  Defining high correlated features
 
 After completing this process, we will have the following outcomes:
 
@@ -76,8 +72,8 @@ library(arrow)
 source(here("R/01-custom-functions.R"))
 ```
 
-3.  Creating an Arrow connection object to perform some manipulations in
-    disk before taking the data into the RAM memory.
+3.  Creating an Arrow connection object to perform some **manipulations
+    in disk** before taking the data into the RAM memory.
 
 ``` r
 NycTrips2022 <- 
@@ -540,7 +536,8 @@ In our data the columns `request_datetime`, `on_scene_datetime`,
 as taxi trips takes less than a day most of the columns well be highly
 correlated. To explore the data efficiently we will explore the
 distribution of `request_datetime`and then use columns to calculate the
-time required for each process described in the **SIPOC** diagram.
+time required for each process described in the **SIPOC** diagram and
+explore each of them as numeric variables.
 
 #### Exploring the Customer Request distribution
 
@@ -654,20 +651,76 @@ RequestTimeSummary[year(request_month) == 2022,
 
 ![](README_files/figure-gfm/unnamed-chunk-23-1.png)
 
-I the next chart we can see how the higher number of trips take place
-Friday and Saturdays from 17:00 to 00:00 of next days with totals over
-1.8 milions trips.
+If we explore the number of trips by month day we can not see any
+consistent pattern after plotting a line with total of trips for each
+month.
 
 ``` r
-weekdays_name <- c("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
+RequestTimeSummary[year(request_month) == 2022, 
+                   .(n = sum(n)),
+                   by = .(request_month = format(request_month, "%B"),
+                          request_day)] |>
+  ggplot(aes(request_day, n))+
+  geom_line(aes(group = request_month),
+            color = "gray60",
+            linewidth = 0.1)+
+  geom_smooth(method = 'loess',
+              formula = 'y ~ x',
+              se = FALSE,
+              linewidth = 1.2)+
+  scale_x_continuous(breaks = breaks_width(5))+
+  scale_y_continuous(labels = comma_format())+
+  expand_limits(y = 0)+
+  labs(title = "Number of Trips by Month Day",
+       y = "Number of Trips",
+       x = "Day of Month")+
+  theme_light()+
+  theme(panel.grid = element_blank(),
+        plot.title = element_text(face = "bold"))
+```
 
+![](README_files/figure-gfm/unnamed-chunk-24-1.png)
+
+By if we change the month day in the prior chart with week day we can
+find that the number of trips trends to be higher Fridays and Saturdays.
+
+``` r
+RequestTimeSummary[year(request_month) == 2022, 
+                   .(n = sum(n)),
+                   by = .(request_month = format(request_month, "%B"),
+                          request_weekday)] |>
+  ggplot(aes(request_weekday, n))+
+  geom_line(aes(group = request_month),
+            color = "gray60")+
+  geom_smooth(method = 'loess',
+              formula = 'y ~ x',
+              se = FALSE,
+              linewidth = 1.2)+
+  scale_x_continuous(breaks = breaks_width(1),
+                     labels = factor_weekday)+
+  scale_y_continuous(labels = comma_format())+
+  expand_limits(y = 0)+
+  labs(title = "Number of Trips by Week Day",
+       y = "Number of Trips",
+       x = "Day of Week")+
+  theme_light()+
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-25-1.png)
+
+To understand better what is happening Fridays and Saturdays let’s break
+each week day by hour. In the next chart, we can see how the higher
+number of trips start at 17:00 and end at 1:00 of next day for Fridays
+and Saturdays.
+
+``` r
 RequestTimeSummary[year(request_month) == 2022, 
                    .(n = sum(n)),
                    by = .(request_hour = 
                             factor(request_hour) |> fct_rev(), 
-                          request_weekday =
-                            factor(weekdays_name[request_weekday], 
-                                   levels = weekdays_name))
+                          request_weekday = factor_weekday(request_weekday))
   ][, n_million := n/1e6 ] |>
   ggplot(aes(request_weekday, request_hour))+
   geom_tile(aes(fill = n),
@@ -677,6 +730,7 @@ RequestTimeSummary[year(request_month) == 2022,
   scale_fill_gradient(low = "white", 
                       high = "dodgerblue4",
                       labels= comma_format())+
+  scale_x_discrete(position = "top") +
   labs(title = "Number of Trips by Hour and Week Day",
        fill = "Number of Trips",
        x = "Request Week Day",
@@ -685,69 +739,66 @@ RequestTimeSummary[year(request_month) == 2022,
   theme(plot.title = element_text(face = "bold"),
         axis.ticks = element_blank(),
         axis.line = element_blank(),
-        axis.text = element_text(color = "black"),
-        axis.title = element_text(face = "italic"))
+        axis.text = element_text(color = "black"))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-24-1.png)
+![](README_files/figure-gfm/unnamed-chunk-26-1.png)
+
+#### Creating new features based of time columns
+
+After understanding the distribution of the `request_datetime` we are
+ready to create the variables:
+
+- `sec_to_location`: Number of seconds needed to for the taxi driver to
+  get in the customer’s extraction point.
+
+- `sec_to_start`: Numbers of seconds needed to start the trip after
+  getting in the starting point.
+
+- `sec_to_end`: Number of seconds needed to transform the customer after
+  starting the trip.
 
 ``` r
-compute_sec_diff <- function(x, start_time, end_time){
-  
-  transmute(x,
-            sec_diff = 
-              difftime(get(end_time), get(start_time)) |> 
-              as.character() |>
-              as.double()) |>
-    filter(!is.na(sec_diff))
-  
-}
-
-compute_boxplot <- function(x, value){
-
-    summarize(x,
-              min_value = min({{value}}),
-              q1 = quantile({{value}}, 0.25),
-              q2 = quantile({{value}}, 0.50),
-              q3 = quantile({{value}}, 0.75),
-              max_value = max({{value}})) |>
-    mutate(lower_hinge = q1 - 1.5*(q3 - q1),
-           higher_hinge = q3 + 1.5*(q3 - q1))
-  
-}
-
-
-time_names <- c(
-  "request_datetime",
-  "on_scene_datetime", 
-  "pickup_datetime",
-  "dropoff_datetime"
-)
-
-metric_name <- c(
-  "sec_to_location",
-  "sec_to_start",
-  "sec_to_end"
-)
-
-# NycTrips2022 |>
-#   compute_sec_diff(times_names[i],
-#                    times_names[i+1L]) |>
-#   compute_boxplot(sec_diff) |>
-#   mutate(metric = metric_name[i]) |>
-#   collect() |>
-#   as.data.table() 
+NycTripsProcessTime <-
+  NycTrips2022 |>
+  mutate(sec_to_location = 
+           difftime(on_scene_datetime, 
+                    request_datetime) |>
+           as.character() |>
+           as.double(),
+         sec_to_start =
+           difftime(pickup_datetime,
+                    on_scene_datetime) |>
+           as.character() |>
+           as.double(),
+         sec_to_end =
+           difftime(dropoff_datetime,
+                    pickup_datetime) |>
+           as.character() |>
+           as.double())
 ```
 
 ### Numerical variables
 
+#### Exploring the distribution of time related features
+
+- `sec_to_location`:
+
+- `sec_to_start`:
+
+- `sec_to_end` and `trip_time`:
+
+#### Exploring the distribution of time related features
+
+- `tips`:
+- `driver_pay`:
+
+### Variables to exclude
+
 - `trip_miles`:
-- `trip_time`:
 - `base_passenger_fare`:
 - `tolls`:
 - `bcf`:
 - `sales_tax`:
 - `congestion_surcharge`:
 - `airport_fee`:
-- `tips`:
-- `driver_pay`:

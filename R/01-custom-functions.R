@@ -74,6 +74,26 @@ join_zones <- function(x, zone_tb){
 
 }
 
+factor_weekday <- function(x){
+
+  weekdays_name <- c("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
+
+  factor(weekdays_name[x], levels = weekdays_name)
+
+}
+
+compute_boxplot <- function(x, value){
+
+  summarize(x,
+            min_value = min({{value}}),
+            q1 = quantile({{value}}, 0.25),
+            q2 = quantile({{value}}, 0.50),
+            q3 = quantile({{value}}, 0.75),
+            max_value = max({{value}})) |>
+    mutate(lower_hinge = q1 - 1.5*(q3 - q1),
+           higher_hinge = q3 + 1.5*(q3 - q1))
+
+}
 
 
 # 2. Feature Engineering ----
