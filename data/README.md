@@ -10,15 +10,15 @@ Where each **row represents a single trip** in an FHV  dispatched by one of NYCâ
 
 |**Field Name**|**Description**|
 |:-------------|:--------------|
-|**Hvfhs_license_num**|The TLC license number of the HVFHS base or business. As of September 2019, the HVFHS licensees are the following: <br> - HV0002: Juno <br> - HV0003: Uber <br> - HV0004: Via <br> - HV0005: Lyft|
-|**Dispatching_base_num**|The TLC Base License Number of the base that dispatched the trip|
-|**Pickup_datetime**|The date and time of the trip pick-up|
-|**DropOff_datetime**|The date and time of the trip drop-off|
-|**PULocationID**|TLC Taxi Zone in which the trip began|
-|**DOLocationID**|TLC Taxi Zone in which the trip ended|
+|**hvfhs_license_num**|The TLC license number of the HVFHS base or business. As of September 2019, the HVFHS licensees are the following: <br> - HV0002: Juno <br> - HV0003: Uber <br> - HV0004: Via <br> - HV0005: Lyft|
+|**dispatching_base_num**|The TLC Base License Number of the base that dispatched the trip|
 |**originating_base_num**|Base number of the base that received the original trip request|
 |**request_datetime**|Date/time when passenger requested to be picked up|
 |**on_scene_datetime**|Date/time when driver arrived at the pick-up location (Accessible Vehicles-only)|
+|**pickup_datetime**|The date and time of the trip pick-up|
+|**dropoff_datetime**|The date and time of the trip drop-off|
+|**PULocationID**|TLC Taxi Zone in which the trip began|
+|**DOLocationID**|TLC Taxi Zone in which the trip ended|
 |**trip_miles**|Total miles for passenger trip|
 |**trip_time**|Total time in seconds for passenger trip|
 |**base_passenger_fare**|Base passenger fare before tolls, tips, taxes, and fees|

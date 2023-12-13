@@ -1,4 +1,88 @@
 
+
+simulate_trips <- function(arrow_con,
+                           current_time,
+                           current_zone,
+                           minutes_next_trip,
+                           waiting_time,
+                           end_time,
+                           valid_zones,
+                           closest_zone,
+                           borough_zones,
+                           seed_num = 1234){
+
+  # Empty table to fill
+  done_trips <- data.table(
+    s_PULocationID = vector("integer"),
+    s_DOLocationID = vector("integer"),
+    s_request_datetime = vector("double") |> as_datetime(),
+    s_dropoff_datetime = vector("double") |> as_datetime(),
+    s_trip_miles = vector("double"),
+    s_trip_time = vector("integer"),
+    s_driver_pay = vector("double"),
+    s_tips = vector("double")
+  )
+
+  # We don't know how many trips
+  # we will need to complete the day
+  while(current_time < end_time){
+
+    simulated_trip <-
+      arrow_con |>
+      select(s_PULocationID = PULocationID,
+             s_DOLocationID = DOLocationID,
+             s_request_datetime = request_datetime,
+             s_dropoff_datetime = dropoff_datetime,
+             s_trip_miles = trip_miles,
+             s_trip_time = trip_time,
+             s_driver_pay = driver_pay,
+             s_tips = tips) |>
+      filter(s_PULocationID %in% current_zone &
+               s_DOLocationID %in% valid_zones &
+               s_request_datetime >= current_time &
+               s_request_datetime <= waiting_time) |>
+      collect()
+
+
+    # Go to closest zone
+    if(length(current_zone) == 1L && nrow(simulated_trip) == 0L){
+
+      waiting_time <- current_time + minutes_next_trip
+      current_zone <- c(current_zone, closest_zone[as.character(current_zone)])
+
+      # Find a trip in the Borough
+    }else if(length(current_zone) > 1L && nrow(simulated_trip) == 0L){
+
+      waiting_time <- current_time + minutes_next_trip
+      current_zone <- c(
+        current_zone,
+        borough_zones[LocationID == current_zone[1L], id_list][[1L]]
+      )
+
+    }else{
+
+      # Sample a trip
+      set.seed(seed_num)
+      simulated_trip <- sample_n(simulated_trip, size = 1L)
+      set.seed(NULL)
+
+      # Adding the trip to final result
+      done_trips <- rbind(done_trips, simulated_trip)
+
+      # Updating starting point
+      current_time <- simulated_trip$s_dropoff_datetime
+      current_zone <- simulated_trip$s_DOLocationID
+      waiting_time <- current_time + minutes_next_trip
+    }
+
+  }
+
+  # Returning all trips
+  return(done_trips)
+
+}
+
+
 # 1. EDA -----
 
 glimpse <- function(...){
@@ -84,14 +168,15 @@ factor_weekday <- function(x){
 
 compute_boxplot <- function(x, value){
 
-  summarize(x,
-            min_value = min({{value}}),
-            q1 = quantile({{value}}, 0.25),
-            q2 = quantile({{value}}, 0.50),
-            q3 = quantile({{value}}, 0.75),
-            max_value = max({{value}})) |>
-    mutate(lower_hinge = q1 - 1.5*(q3 - q1),
-           higher_hinge = q3 + 1.5*(q3 - q1))
+  filter(x,
+         !is.na({{value}})) |>
+    summarize(min_value = min({{value}}),
+              q1 = quantile({{value}}, 0.25),
+              q2 = median({{value}}),
+              q3 = quantile({{value}}, 0.75),
+              max_value = max({{value}})) |>
+    mutate(lower_whisker = q1 - 1.5*(q3 - q1),
+           higher_whisker = q3 + 1.5*(q3 - q1))
 
 }
 

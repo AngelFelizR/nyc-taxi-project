@@ -11,12 +11,17 @@ execute:
 
 After completing the [business understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding) step, we have a clear objective in mind and an initial description for each column the [raw data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data), we are ready to perform the *data understanding* by performing an EDA with the following steps:
 
-1. Examining the distribution of each individual variable
-2. Defining the target variable and exploring its distribution
-3. Taking a subset of the data to fit in RAM
-4. Preparing the data for modeling
-5. Defining the main characteristics of high paying trips
-6. Defining high correlated features
+1. Splitting variables in process input related and output related variables.
+2. Examining the distribution of each input related variables
+3. Defining the target variable
+4. Examining the distribution of target related variables
+5. Exploring the distribution of target variable
+6. Taking a subset of the data to fit in RAM
+7. Transforming the data for modeling
+8. Imputing missing values
+9. 
+10. Defining the main characteristics of high paying trips
+11. Defining high correlated features
 
 After completing this process, we will have the following outcomes:
 
@@ -369,6 +374,14 @@ In our data the columns `request_datetime`, `on_scene_datetime`, `pickup_datetim
 
 #### Exploring the Customer Request distribution
 
+Let's start confirming if `request_datetime` has any missing value.
+
+```{r}
+NycTrips2022 |>
+  count(request_datetime_missing = is.na(request_datetime)) |>
+  collect()
+```
+
 To describe this variable, we decomposed it in different parts and count the number trips by each element and store the summary as a `data.table` to explore each part using visualizations.
 
 ```{r}
@@ -582,11 +595,63 @@ NycTripsProcessTime <-
 
 #### Exploring the distribution of time related features
 
+Before exploring each distribution let's count the number of missing values by column.
+
+```{r}
+NycTrips2022 |>
+  summarize(missing_request_datetime = sum(is.na(request_datetime)),
+            missing_on_scene_datetime = sum(is.na(on_scene_datetime)),
+            missing_pickup_datetime = sum(is.na(pickup_datetime)),
+            missing_dropoff_datetime = sum(is.na(dropoff_datetime))) |>
+  collect() |>
+  as.data.table() |>
+  melt(measure.vars = patterns("^missing"),
+       value.name = "N") |>
+  (\(dt) dt[order(-N),
+            .(variable, N = comma(N))])()
+```
+
+
 - `sec_to_location`:
+
+```{r}
+ToLocationDist <-
+  NycTripsProcessTime |>
+  compute_boxplot(sec_to_location) |>
+  collect() 
+
+ToLocationDist |>
+  ggplot(aes("sec_to_location", q2))+
+  geom_boxplot(
+    aes(ymin = lower_whisker, 
+        lower = q1, 
+        middle = q2, 
+        upper = q3, 
+        ymax = higher_whisker),
+    stat = "identity",
+    width = 0.3
+  )+
+  scale_y_continuous(breaks = breaks_width(100))+
+  theme_light()
+```
+
 
 - `sec_to_start`:
 
+```{r}
+NycTripsProcessTime |>
+  count(missing_sec_to_start = is.na(sec_to_start)) |>
+  collect()
+```
+
+
 - `sec_to_end` and `trip_time`:
+
+```{r}
+NycTripsProcessTime |>
+  count(missing_sec_to_start = is.na(sec_to_start)) |>
+  collect()
+```
 
 #### Exploring the distribution of time related features
 
