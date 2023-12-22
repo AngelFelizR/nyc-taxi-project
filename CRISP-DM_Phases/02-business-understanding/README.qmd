@@ -147,16 +147,18 @@ Let's start loading the environment to use.
 
 ```{r}
 # Loading libraries to use
+library(here)
 library(scales)
+library(ggplot2)
 library(data.table)
 library(lubridate)
 library(dplyr)
 library(arrow)
-source(here::here("R/01-custom-functions.R"))
+source(here("R/01-custom-functions.R"))
 
 # Loading valid zones
-ZoneCodes <- fread(
-  here::here("data/taxi_zone_lookup.csv"),
+ValidZoneCodes <- fread(
+  here("data/taxi_zone_lookup.csv"),
   colClasses = c("integer",
                  "character",
                  "character",
@@ -164,7 +166,7 @@ ZoneCodes <- fread(
 )[Borough %chin% c("Manhattan", "Brooklyn", "Queens")]
 
 # Trip Data
-NycTrips <- open_dataset(here::here("data/trip-data"))
+NycTrips <- open_dataset(here("data/trip-data"))
 ```
 
 Then we can define the closest zone to each starting zone.
@@ -191,9 +193,9 @@ And identify all zones related to each Borough.
 #| eval: false
 
 BoroughZones <-
-  ZoneCodes[, .(LocationID,
-                id_list = list(LocationID)),
-            by = "Borough"]
+  ValidZoneCodes[, .(LocationID,
+                     id_list = list(LocationID)),
+                 by = "Borough"]
 ```
 
 The simulation will be based on the following assumptions related to the taxi drivers:
@@ -212,73 +214,104 @@ The simulation will be based on the following assumptions related to the taxi dr
 NumRepetitions <- 30L
 MinutesToNextTrip <- minutes(6L)
 
-# Defining the starting point of each repetition
+# Defining the seed
 set.seed(1558)
-RepetionsStartPoint <-
-  data.table(simulation_day = 1:NumRepetitions,
-             seed_num = sample(1000:9000, NumRepetitions),
-             PULocationID = sample(ZoneCodes$LocationID, NumRepetitions, replace = TRUE),
-             hours_to_work = sample(8:12, NumRepetitions, replace = TRUE),
-             start_time = make_datetime(
-               year = 2022L,
-               month = sample(1:12, NumRepetitions, replace = TRUE),
-               day = sample(1:31, NumRepetitions, replace = TRUE),
-               hour = sample(0:23, NumRepetitions, replace = TRUE)
-             )
-  )[, data := list(list(
-    simulate_trips(
-      NycTrips,
-      current_time = start_time,
-      current_zone = PULocationID,
-      minutes_next_trip = MinutesToNextTrip,
-      waiting_time = start_time + MinutesToNextTrip,
-      end_time = start_time + hours(hours_to_work),
-      valid_zones = ZoneCodes$LocationID,
-      closest_zone = ClosestZone,
-      borough_zones = BoroughZones,
-      seed_num = seed_num)
-  )),
-  by = "simulation_day"]
 
+# Defining the starting point of each repetition
+RandomStartPoint <- data.table(
+  simulation_day = 1:NumRepetitions,
+  seed_num = sample(1000:9000, NumRepetitions),
+  PULocationID = sample(ValidZoneCodes$LocationID, NumRepetitions, replace = TRUE),
+  hours_to_work = sample(8:12, NumRepetitions, replace = TRUE),
+  start_time = make_datetime(
+    year = 2022L,
+    month = sample(1:12, NumRepetitions, replace = TRUE),
+    day = sample(1:31, NumRepetitions, replace = TRUE),
+    hour = sample(0:23, NumRepetitions, replace = TRUE)
+  )
+)
 
-# Now we can save the results
+# Performing base line simulation
+BaseLineSimulation <-
+  RandomStartPoint[
+    , simulate_trips(NycTrips,
+                     current_time = start_time,
+                     current_zone = PULocationID,
+                     minutes_next_trip = MinutesToNextTrip,
+                     waiting_time = start_time + MinutesToNextTrip,
+                     end_time = start_time + hours(hours_to_work),
+                     valid_zones = ValidZoneCodes$LocationID,
+                     closest_zone = ClosestZone,
+                     borough_zones = BoroughZones,
+                     seed_num = seed_num),
+    by = "simulation_day"
+  ][RandomStartPoint, on = "simulation_day"]
+```
 
-save(ClosestZone,
-     BoroughZones,
-     NumRepetitions,
-     MinutesToNextTrip,
-     RepetionsStartPoint,
-     file = here::here("data/Base-Simulation.RData"))
+```{r}
+#| echo: false
+#| eval: false
+
+# Now we can save the results to 
+# avoid running this long simulation twice
+
+save(
+  ClosestZone,
+  BoroughZones,
+  NumRepetitions,
+  MinutesToNextTrip,
+  RandomStartPoint,
+  BaseLineSimulation,
+  file = here("data/Base-Simulation.RData")
+)
 
 ```
 
 ```{r}
 #| echo: false
 
-load(here::here("data/Base-Simulation.RData"))
+load(here("data/Base-Simulation.RData"))
 ```
+
+Once we have the simulation, we can say with 95% confident that the **Hourly Wage Mean** is between 34.34 and 55.29 dollars, with **42.54** as our best approximation.
 
 ```{r}
-RepetionsStartPoint[, data[[1L]],
-                    by = simulation_day
-][RepetionsStartPoint[, !c("data")], on = "simulation_day"
-][, .(value = (sum(s_driver_pay) + sum(s_tips))/mean(hours_to_work)),
-  by = simulation_day]$value |>
-  hist()
+SimulationHourlyWage <-
+  BaseLineSimulation[, .(`Hourly Wage` = (sum(s_driver_pay) + sum(s_tips))/mean(hours_to_work)),
+                     by = "simulation_day"] 
+
+Interval <- 
+  quantile(SimulationHourlyWage$`Hourly Wage`, c(0.025, 0.975)) |>
+  round(2)
+
+ggplot(SimulationHourlyWage)+
+  geom_histogram(aes(`Hourly Wage`),
+                 fill = "blue2",
+                 binwidth = 4,
+                 alpha = 0.80)+
+  geom_vline(xintercept = Interval,
+             linewidth = 0.8)+
+  annotate(geom = "text",
+           y = 7,
+           x = c(Interval[1L] - 1.5,
+                 Interval[2L] + 1.5),
+           label = as.character(Interval))+
+  scale_y_continuous(breaks = breaks_width(2, offset = 1))+
+  labs(title = "Hourly Wage Distribution",
+       subtitle = paste0("Mean: ", round(mean(SimulationHourlyWage$`Hourly Wage`), 2),
+                         ", Median: ", round(median(SimulationHourlyWage$`Hourly Wage`), 2)),
+       y = "Count")+
+  theme_light()+
+  theme(panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.title = element_text(face = "bold"))
 ```
-
-
-
-|**Metric**|**Baseline**|**Goal**|
-|:--------:|:----------:|:------:|
-|Hourly Wage| [55](https://www.ziprecruiter.com/Salaries/UBER-Taxi-Driver-Salary-in-Manhattan,NY) | 66|
-
 
 ## Business Case
 
 As the based driver's pay increase with costs like gas, time and car's maintenance the best way to increase total earning is by increasing the amount of **tips** that drivers receive from customers.
 
-Based on *212,416,083* trips recorded 2022, drivers received *$229,936,965* in tips which is only 5% of the total earnings for that year, for example if a driver improve his strategy to increase his tips to **20%** of his current earning he could be earning **$1,760** extra monthly if he works 8 hours a day, 5 days each week and earns *$55* hourly (based on [ziprecruiter](https://www.ziprecruiter.com/Salaries/UBER-Taxi-Driver-Salary-in-Manhattan,NY), 2023-11-22).
+Based on *212,416,083* trips recorded 2022, drivers received *$229,936,965* in tips which is only 5% of the total earnings for that year, for example if a driver improve his strategy to increase his tips to **20%** of his current earning he could be earning **`r dollar(42.54*8*5*4*0.2)`** extra monthly if he works 8 hours a day, 5 days each week and earns *$42.54* hourly.
 
 ```{r}
 # 2022 Earning Summary
@@ -304,6 +337,8 @@ NycTrips |>
    )()
 
 ```
+
+## Project's side benefits
 
 It's also important to consider that Taxi companies and customers can both benefit from drivers earning more tips in several ways:
 

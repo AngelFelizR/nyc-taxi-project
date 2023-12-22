@@ -10,10 +10,14 @@ Defining the project
   Process Definition</a>
 - <a href="#project-objetive" id="toc-project-objetive">Project
   Objetive</a>
-- <a href="#defining-metric" id="toc-defining-metric">Defining Metric</a>
-- <a href="#business-case" id="toc-business-case">Business Case</a>
 - <a href="#data-requirements" id="toc-data-requirements">Data
   Requirements</a>
+- <a href="#defining-metric" id="toc-defining-metric">Defining Metric</a>
+  - <a href="#defining-metrics-base-line"
+    id="toc-defining-metrics-base-line">Defining Metric’s Base Line</a>
+- <a href="#business-case" id="toc-business-case">Business Case</a>
+- <a href="#projects-side-benefits"
+  id="toc-projects-side-benefits">Project’s side benefits</a>
 - <a href="#deliverables" id="toc-deliverables">Deliverables</a>
 
 ## Project Name
@@ -105,15 +109,203 @@ The objective of this project is to develop a strategy to select the
 best payed trips possible and to increase their tips and thereby their
 net earnings.
 
+## Data Requirements
+
+In this project will use a subset of the data available in the [TLC Trip
+Record
+Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) from
+2022 to 2023 for **High Volume For-Hire Vehicle** with the columns
+described in the README.md file located at the
+[data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data)
+folder.
+
+Based on the variables available, we can divide them in to 2 categories:
+
+- **Available Before Arriving at the Pick-Up Location**
+  - hvfhs_license_num
+  - dispatching_base_num
+  - originating_base_num
+  - request_datetime
+  - PULocationID
+  - DOLocationID
+  - trip_miles
+  - base_passenger_fare
+  - shared_request_flag
+  - access_a\_ride_flag
+  - wav_request_flag
+  - wav_match_flag
+- **Available After Ending the Trip**
+  - on_scene_datetime
+  - pickup_datetime
+  - dropoff_datetime
+  - trip_time
+  - tolls
+  - bcf
+  - sales_tax
+  - congestion_surcharge
+  - airport_fee
+  - tips
+  - driver_pay
+  - shared_match_flag
+
 ## Defining Metric
+
+Based on the current information we can say that our objective is to
+increase the **hourly wage** received by each taxi driver defined by the
+following formula.
 
 $$
 \text{Hourly Wage} = \frac{\text{Total Driver Pay} + \text{Total Tips}}{\text{Total Hours Worked}}
 $$
 
-| **Metric**  |                                    **Baseline**                                     | **Goal** |
-|:-----------:|:-----------------------------------------------------------------------------------:|:--------:|
-| Hourly Wage | [55](https://www.ziprecruiter.com/Salaries/UBER-Taxi-Driver-Salary-in-Manhattan,NY) |    66    |
+### Defining Metric’s Base Line
+
+Defining the based line based on this data is a challenge as the data
+doesn’t any unique id to make the estimation, but we can run a
+simulation to estimate it’s value with a confident interval.
+
+Let’s start loading the environment to use.
+
+``` r
+# Loading libraries to use
+library(here)
+library(scales)
+library(ggplot2)
+library(data.table)
+library(lubridate)
+library(dplyr)
+library(arrow)
+source(here("R/01-custom-functions.R"))
+
+# Loading valid zones
+ValidZoneCodes <- fread(
+  here("data/taxi_zone_lookup.csv"),
+  colClasses = c("integer",
+                 "character",
+                 "character",
+                 "character")
+)[Borough %chin% c("Manhattan", "Brooklyn", "Queens")]
+
+# Trip Data
+NycTrips <- open_dataset(here("data/trip-data"))
+```
+
+Then we can define the closest zone to each starting zone.
+
+``` r
+ClosestZone <-
+  NycTrips |>
+  group_by(PULocationID, DOLocationID) |>
+  summarize(trip_miles_mean = mean(trip_miles)) |>
+  collect() |>
+  as.data.table() |>
+  (\(dt) dt[PULocationID != DOLocationID
+  ][order(PULocationID, trip_miles_mean),
+    .SD[1L],
+    by = "PULocationID"
+  ][, setattr(DOLocationID, "names", PULocationID)])()
+```
+
+And identify all zones related to each Borough.
+
+``` r
+BoroughZones <-
+  ValidZoneCodes[, .(LocationID,
+                     id_list = list(LocationID)),
+                 by = "Borough"]
+```
+
+The simulation will be based on the following assumptions related to the
+taxi drivers:
+
+- They can start to work from any zone of Manhattan, Brooklyn or Queens.
+- They work from 8 to 12 hour every day.
+- They can start to work in any month, weekday or hour.
+- They just can take trips starting at the same zone they are after
+  ending the their last trip
+- The maximum waiting time before receiving a new trip request is 6
+  minutes.
+- If a taxi driver cannot find a new trip in the first 6 minutes, he can
+  to extend 6 minutes more and drive to the closest zone to find a new
+  trip, but if that doesn’t work in the next 6 minutes he can drive to
+  any zone in the current Borough.
+
+``` r
+# Repeating the experiment to create confident intervals
+NumRepetitions <- 30L
+MinutesToNextTrip <- minutes(6L)
+
+# Defining the seed
+set.seed(1558)
+
+# Defining the starting point of each repetition
+RandomStartPoint <- data.table(
+  simulation_day = 1:NumRepetitions,
+  seed_num = sample(1000:9000, NumRepetitions),
+  PULocationID = sample(ValidZoneCodes$LocationID, NumRepetitions, replace = TRUE),
+  hours_to_work = sample(8:12, NumRepetitions, replace = TRUE),
+  start_time = make_datetime(
+    year = 2022L,
+    month = sample(1:12, NumRepetitions, replace = TRUE),
+    day = sample(1:31, NumRepetitions, replace = TRUE),
+    hour = sample(0:23, NumRepetitions, replace = TRUE)
+  )
+)
+
+# Performing base line simulation
+BaseLineSimulation <-
+  RandomStartPoint[
+    , simulate_trips(NycTrips,
+                     current_time = start_time,
+                     current_zone = PULocationID,
+                     minutes_next_trip = MinutesToNextTrip,
+                     waiting_time = start_time + MinutesToNextTrip,
+                     end_time = start_time + hours(hours_to_work),
+                     valid_zones = ValidZoneCodes$LocationID,
+                     closest_zone = ClosestZone,
+                     borough_zones = BoroughZones,
+                     seed_num = seed_num),
+    by = "simulation_day"
+  ][RandomStartPoint, on = "simulation_day"]
+```
+
+Once we have the simulation, we can say with 95% confident that the
+**Hourly Wage Mean** is between 34.34 and 55.29 dollars, with **42.54**
+as our best approximation.
+
+``` r
+SimulationHourlyWage <-
+  BaseLineSimulation[, .(`Hourly Wage` = (sum(s_driver_pay) + sum(s_tips))/mean(hours_to_work)),
+                     by = "simulation_day"] 
+
+Interval <- 
+  quantile(SimulationHourlyWage$`Hourly Wage`, c(0.025, 0.975)) |>
+  round(2)
+
+ggplot(SimulationHourlyWage)+
+  geom_histogram(aes(`Hourly Wage`),
+                 fill = "blue2",
+                 binwidth = 4,
+                 alpha = 0.80)+
+  geom_vline(xintercept = Interval,
+             linewidth = 0.8)+
+  annotate(geom = "text",
+           y = 7,
+           x = c(Interval[1L] - 1.5,
+                 Interval[2L] + 1.5),
+           label = as.character(Interval))+
+  scale_y_continuous(breaks = breaks_width(2, offset = 1))+
+  labs(title = "Hourly Wage Distribution",
+       subtitle = paste0("Mean: ", round(mean(SimulationHourlyWage$`Hourly Wage`), 2),
+                         ", Median: ", round(median(SimulationHourlyWage$`Hourly Wage`), 2)),
+       y = "Count")+
+  theme_light()+
+  theme(panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.title = element_text(face = "bold"))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-8-1.png)
 
 ## Business Case
 
@@ -124,22 +316,11 @@ amount of **tips** that drivers receive from customers.
 Based on *212,416,083* trips recorded 2022, drivers received
 *\$229,936,965* in tips which is only 5% of the total earnings for that
 year, for example if a driver improve his strategy to increase his tips
-to **20%** of his current earning he could be earning **\$1,760** extra
-monthly if he works 8 hours a day, 5 days each week and earns *\$55*
-hourly (based on
-[ziprecruiter](https://www.ziprecruiter.com/Salaries/UBER-Taxi-Driver-Salary-in-Manhattan,NY),
-2023-11-22).
+to **20%** of his current earning he could be earning **\$1,361.28**
+extra monthly if he works 8 hours a day, 5 days each week and earns
+*\$42.54* hourly.
 
 ``` r
-# Loading libraries to use
-library(scales)
-library(data.table)
-library(dplyr)
-library(arrow)
-
-# Loading data to arrow
-NycTrips <- open_dataset(here::here("data/trip-data"))
-
 # 2022 Earning Summary
 NycTrips |>
   filter(year == 2022) |>
@@ -171,6 +352,8 @@ NycTrips |>
     5:                tips   $229,936,965
     6:            tips_pct             5%
 
+## Project’s side benefits
+
 It’s also important to consider that Taxi companies and customers can
 both benefit from drivers earning more tips in several ways:
 
@@ -195,17 +378,7 @@ both benefit from drivers earning more tips in several ways:
       be less likely to engage in risky behaviors (like speeding or
       working overly long shifts) to earn more.
 
-## Data Requirements
-
-In this project will use a subset of the data available in the [TLC Trip
-Record
-Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) from
-2022 to 2023 for **High Volume For-Hire Vehicle** with the columns
-described in the README.md file located at the
-[data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data)
-folder.
-
 ## Deliverables
 
-A Shiny app which assist the drivers focus their attention to the better
-trips.
+A **Shiny app** which assist the drivers focus their attention to the
+better trips.
