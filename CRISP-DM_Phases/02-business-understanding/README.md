@@ -8,11 +8,12 @@ Defining the project
 - <a href="#stakeholders" id="toc-stakeholders">Stakeholders</a>
 - <a href="#top-process-definition" id="toc-top-process-definition">Top
   Process Definition</a>
-- <a href="#project-objetive" id="toc-project-objetive">Project
-  Objetive</a>
-- <a href="#data-requirements" id="toc-data-requirements">Data
-  Requirements</a>
+- <a href="#project-objective" id="toc-project-objective">Project
+  Objective</a>
 - <a href="#defining-metric" id="toc-defining-metric">Defining Metric</a>
+- <a href="#data-to-use" id="toc-data-to-use">Data to Use</a>
+- <a href="#outcome-to-predict" id="toc-outcome-to-predict">Outcome to
+  predict</a>
   - <a href="#defining-metrics-base-line"
     id="toc-defining-metrics-base-line">Defining Metric’s Base Line</a>
 - <a href="#business-case" id="toc-business-case">Business Case</a>
@@ -43,7 +44,7 @@ who work in New York City.
 
 ## Top Process Definition
 
-Top define the elements of the process, we use a **SIPOC** diagram.
+To define the elements of the process, we use a **SIPOC** diagram.
 
 ``` r
 DiagrammeR::grViz('
@@ -103,16 +104,26 @@ digraph SIPOC {
 
 ![](img/01-SIPOC.png)
 
-## Project Objetive
+## Project Objective
 
 The objective of this project is to develop a strategy to select the
-best payed trips possible and to increase their tips and thereby their
+best paid trips possible and to increase their tips and thereby their
 net earnings.
 
-## Data Requirements
+## Defining Metric
 
-In this project will use a subset of the data available in the [TLC Trip
-Record
+Based on the current information we can say that our objective is to
+increase the **hourly wage** received by each taxi driver defined by the
+following formula.
+
+$$
+\text{Hourly Wage} = \frac{\text{Total Driver Pay} + \text{Total Tips}}{\text{Total Hours Worked}}
+$$
+
+## Data to Use
+
+In this project, we will use a subset of the data available in the [TLC
+Trip Record
 Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) from
 2022 to 2023 for **High Volume For-Hire Vehicle** with the columns
 described in the README.md file located at the
@@ -121,7 +132,8 @@ folder.
 
 Based on the variables available, we can divide them in to 2 categories:
 
-- **Available Before Arriving at the Pick-Up Location**
+- **Available Before Arriving at the Pick-Up Location**: They will be
+  used as the predictors to train the model.
   - hvfhs_license_num
   - dispatching_base_num
   - originating_base_num
@@ -134,7 +146,8 @@ Based on the variables available, we can divide them in to 2 categories:
   - access_a\_ride_flag
   - wav_request_flag
   - wav_match_flag
-- **Available After Ending the Trip**
+- **Available After Ending the Trip**: They will be used to create the
+  outcome variable needs to be predicted by the model.
   - on_scene_datetime
   - pickup_datetime
   - dropoff_datetime
@@ -148,23 +161,28 @@ Based on the variables available, we can divide them in to 2 categories:
   - driver_pay
   - shared_match_flag
 
-## Defining Metric
+## Outcome to predict
 
-Based on the current information we can say that our objective is to
-increase the **hourly wage** received by each taxi driver defined by the
-following formula.
+To select better trips a taxi driver needs to have a clear which are the
+best trips to take, I mean the ones the request less time to get more
+money.
+
+Based on the available data we can calculate the **profit_rate** in
+dollars by minute to *minimize the time needed to make more money* and
+increasing in consequence the expected **hourly wage** in the long term.
 
 $$
-\text{Hourly Wage} = \frac{\text{Total Driver Pay} + \text{Total Tips}}{\text{Total Hours Worked}}
+\text{profit_rate} = \frac{\text{driver_pay} + \text{tips}}{(\text{dropoff_datetime}-\text{request_datetime})/60}
 $$
 
 ### Defining Metric’s Base Line
 
-Defining the based line based on this data is a challenge as the data
-doesn’t any unique id to make the estimation, but we can run a
-simulation to estimate it’s value with a confident interval.
+Defining the baseline based on this data is a challenge as the data
+doesn’t have any unique id to make the estimation, but we can run a
+simulation to estimate its value with a confident interval.
 
-Let’s start loading the environment to use.
+Let’s start loading the environment to use with zone code related to the
+more active borough in NYC (based on EDA).
 
 ``` r
 # Loading libraries to use
@@ -309,13 +327,13 @@ ggplot(SimulationHourlyWage)+
 
 ## Business Case
 
-As the based driver’s pay increase with costs like gas, time and car’s
+As the base driver’s pay increases with costs like gas, time and car’s
 maintenance the best way to increase total earning is by increasing the
 amount of **tips** that drivers receive from customers.
 
 Based on *212,416,083* trips recorded 2022, drivers received
 *\$229,936,965* in tips which is only 5% of the total earnings for that
-year, for example if a driver improve his strategy to increase his tips
+year, for example if a driver improves his strategy to increase his tips
 to **20%** of his current earning he could be earning **\$1,361.28**
 extra monthly if he works 8 hours a day, 5 days each week and earns
 *\$42.54* hourly.
@@ -380,5 +398,5 @@ both benefit from drivers earning more tips in several ways:
 
 ## Deliverables
 
-A **Shiny app** which assist the drivers focus their attention to the
-better trips.
+A **Shiny app** which assists the drivers in focusing their attention on
+the better trips.
