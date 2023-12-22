@@ -11,24 +11,47 @@ execute:
 
 After completing the [business understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding) step, we have a clear objective in mind and an initial description for each column the [raw data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data), we are ready to perform the *data understanding* by performing an EDA with the following steps:
 
-1. Splitting variables in process input related and output related variables.
-2. Examining the distribution of each input related variables
-3. Defining the target variable
-4. Examining the distribution of target related variables
-5. Exploring the distribution of target variable
-6. Taking a subset of the data to fit in RAM
-7. Transforming the data for modeling
-8. Imputing missing values
-9. 
-10. Defining the main characteristics of high paying trips
-11. Defining high correlated features
+1. Examining the distribution of variables available before arriving at the pick-up location.
+2. Examining the distribution of the target variable.
+3. Taking a subset of the data to fit in RAM.
+4. Exploring correlations between predictors and target variable.
+5. Exploring correlations between predictors.
+
+
 
 After completing this process, we will have the following outcomes:
 
-- Confirming the meaning of each variable
-- Ensuring data quality by finding missing values and 
-- Identifying the best models to train
-- Creating new features that can enhance the predictive power of the machine learning model
+Performing the five steps you've outlined in your Exploratory Data Analysis (EDA) will provide several valuable outcomes. These steps are crucial for ensuring that your data is well-understood, of high quality, and prepared for effective modeling. Here's a breakdown of the outcomes you can expect from each step, including your examples and additional insights:
+
+1. **Examining the distribution of variables available before arriving at the pick-up location**:
+   - **Insight into Variable Characteristics**: Understanding the range, central tendencies, and dispersion of these variables.
+   - **Data Quality Checks**: Identifying any anomalies or outliers that may indicate data quality issues or require special handling.
+
+2. **Examining the distribution of the target variable**:
+   - **Understanding Target Variable Dynamics**: Gaining insights into the nature of the variable you're trying to predict, which can influence model selection and interpretation of results.
+   - **Identifying Data Imbalances**: Detecting skewness or imbalances, especially important in classification problems where class imbalance can affect model performance.
+
+3. **Taking a subset of the data to fit in RAM**:
+   - **Feasibility of Analysis**: Ensuring that your dataset is manageable and can be processed with the available computational resources.
+   - **Representativeness Check**: Making sure the subset is representative of the entire dataset to avoid biased analyses.
+
+4. **Exploring correlations between predictors and target variable**:
+   - **Identifying Key Predictors**: Pinpointing which variables have the most significant relationships with the target variable, guiding feature selection.
+   - **Informing Model Choice**: Understanding these relationships can suggest appropriate modeling techniques or transformations needed.
+
+5. **Exploring correlations between predictors**:
+   - **Detecting Multicollinearity**: Identifying correlations among predictors to address multicollinearity, which can impact certain types of models.
+   - **Guiding Feature Engineering**: Using insights from correlations to create new features or modify existing ones to improve model performance.
+
+Additional Outcomes:
+
+- **Ensuring Data Quality**: Detecting and addressing missing values, errors, or inconsistencies in your data.
+- **Identifying Best Models**: The insights gained can guide the selection of the most appropriate modeling techniques.
+- **Creating New Features**: Based on the relationships and patterns identified, you can engineer new features to enhance the predictive power of your models.
+- **Preparing for Data Preprocessing**: Decisions about scaling, normalizing, or transforming data can be guided by the findings in the EDA.
+- **Informing Data Strategy**: EDA outcomes can highlight areas where additional data might be beneficial or where data collection strategies might need adjustment.
+
+In summary, these EDA steps are integral to preparing your data for modeling and ensuring that your approach is grounded in a thorough understanding of the dataset's characteristics and relationships. They provide a foundation for building effective, robust, and interpretable machine learning models.
 
 ## Setting the environment up
 
