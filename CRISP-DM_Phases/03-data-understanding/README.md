@@ -748,4 +748,49 @@ RequestTimeSummary[year(request_month) == 2022,
 ### Numeric variables
 
 - `trip_miles`:
+
+``` r
+NycTrips2022 |>
+  compute_boxplot(trip_miles) |>
+  collect() |>
+  ggplot()+
+  geom_boxplot(
+    aes(x = "", y = q2,
+        ymin = lower_whisker, 
+        lower = q1, 
+        middle = q2, 
+        upper = q3, 
+        ymax = higher_whisker),
+    stat = "identity",
+    width = 0.3
+  )+
+  labs(y = "trip_miles",
+       x = "") +
+  theme_light()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-28-1.png)
+
 - `base_passenger_fare`:
+
+``` r
+NycTrips2022 |>
+  compute_boxplot(base_passenger_fare) |>
+  collect() |>
+  ggplot()+
+  geom_boxplot(
+    aes(x = "", y = q2,
+        ymin = lower_whisker, 
+        lower = q1, 
+        middle = q2, 
+        upper = q3, 
+        ymax = higher_whisker),
+    stat = "identity",
+    width = 0.3
+  )+
+  labs(y = "base_passenger_fare",
+       x = "") +
+  theme_light()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-29-1.png)

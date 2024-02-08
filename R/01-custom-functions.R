@@ -176,7 +176,14 @@ compute_boxplot <- function(x, value){
               q3 = quantile({{value}}, 0.75),
               max_value = max({{value}})) |>
     mutate(lower_whisker = q1 - 1.5*(q3 - q1),
-           higher_whisker = q3 + 1.5*(q3 - q1))
+           higher_whisker = q3 + 1.5*(q3 - q1)) |>
+    select(min_value,
+           lower_whisker,
+           q1,
+           q2,
+           q3,
+           higher_whisker,
+           max_value)
 
 }
 

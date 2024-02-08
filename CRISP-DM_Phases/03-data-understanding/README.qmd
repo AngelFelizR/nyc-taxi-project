@@ -557,4 +557,83 @@ RequestTimeSummary[year(request_month) == 2022,
 ### Numeric variables
 
 - `trip_miles`:
+
+```{r}
+TripMilesSummary <-
+  NycTrips2022 |>
+  compute_boxplot(trip_miles) |>
+  collect()
+
+TripMilesSummary
+```
+
+```{r}
+ggplot(TripMilesSummary)+
+  geom_boxplot(
+    aes(x = "", y = q2,
+        ymin = pmax(min_value, lower_whisker), 
+        lower = q1, 
+        middle = q2, 
+        upper = q3, 
+        ymax = pmin(max_value, higher_whisker)),
+    stat = "identity",
+    width = 0.3
+  )+
+  scale_y_continuous(breaks = breaks_width(2))+
+  labs(y = "trip_miles",
+       x = "") +
+  theme_light()
+```
+
+
+```{r}
+NycTrips2022 |>
+  filter(trip_miles > 15) |>
+  nrow() |>
+  comma()
+```
+
+
+
 - `base_passenger_fare`:
+
+```{r}
+BaseFareSummary <-
+  NycTrips2022 |>
+  compute_boxplot(base_passenger_fare) |>
+  collect()
+
+BaseFareSummary
+```
+
+
+```{r}
+ggplot(BaseFareSummary)+
+  geom_boxplot(
+    aes(x = "", y = q2,
+        ymin = pmax(min_value, lower_whisker), 
+        lower = q1, 
+        middle = q2, 
+        upper = q3, 
+        ymax = pmin(max_value, higher_whisker)),
+    stat = "identity",
+    width = 0.3
+  )+
+  scale_y_continuous(breaks = breaks_width(10))+
+  labs(y = "base_passenger_fare",
+       x = "") +
+  theme_light()
+```
+
+```{r}
+NycTrips2022 |>
+  filter(base_passenger_fare > 500) |>
+  nrow() |>
+  comma()
+
+
+NycTrips2022 |>
+  filter(base_passenger_fare < 0) |>
+  nrow() |>
+  comma()
+```
