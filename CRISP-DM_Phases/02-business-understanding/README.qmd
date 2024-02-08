@@ -146,7 +146,7 @@ To select better trips a taxi driver needs to have a clear which are the best tr
 Based on the available data we can calculate the **profit_rate** in dollars by minute to  *minimize the time needed to make more money* and increasing in consequence the expected **hourly wage** in the long term.
 
 $$
-\text{profit_rate} = \frac{\text{driver pay} + \text{tips}}{(\text{dropoff datetime}-\text{request datetime})/60}
+\text{profit}\_\text{rate} = \frac{\text{driver}\_\text{pay} + \text{tips}}{(\text{dropoff}\_\text{datetime}-\text{request}\_\text{datetime})/60}
 $$
 
 
