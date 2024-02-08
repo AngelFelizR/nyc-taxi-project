@@ -3,16 +3,15 @@ Exploratory Data Analysis (EDA) of 2022 High Volume For-Hire Vehicles
 
 - <a href="#setting-the-environment-up"
   id="toc-setting-the-environment-up">Setting the environment up</a>
-- <a href="#exploring-distribution-of-each-individual-variable"
-  id="toc-exploring-distribution-of-each-individual-variable">Exploring
-  distribution of each individual variable</a>
+- <a
+  href="#distribution-of-variables-available-before-arriving-at-the-pick-up-location"
+  id="toc-distribution-of-variables-available-before-arriving-at-the-pick-up-location">Distribution
+  of variables available before arriving at the pick-up location</a>
   - <a href="#categorical-variables"
     id="toc-categorical-variables">Categorical variables</a>
   - <a href="#time-variables" id="toc-time-variables">Time variables</a>
-  - <a href="#numerical-variables" id="toc-numerical-variables">Numerical
+  - <a href="#numeric-variables" id="toc-numeric-variables">Numeric
     variables</a>
-  - <a href="#variables-to-exclude" id="toc-variables-to-exclude">Variables
-    to exclude</a>
 
 After completing the [business
 understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding)
@@ -26,69 +25,14 @@ performing an EDA with the following steps:
 4.  Exploring correlations between predictors and target variable.
 5.  Exploring correlations between predictors.
 
-After completing this process, we will have the following outcomes:
+In order to:
 
-Performing the five steps you’ve outlined in your Exploratory Data
-Analysis (EDA) will provide several valuable outcomes. These steps are
-crucial for ensuring that your data is well-understood, of high quality,
-and prepared for effective modeling. Here’s a breakdown of the outcomes
-you can expect from each step, including your examples and additional
-insights:
-
-1.  **Examining the distribution of variables available before arriving
-    at the pick-up location**:
-    - **Insight into Variable Characteristics**: Understanding the
-      range, central tendencies, and dispersion of these variables.
-    - **Data Quality Checks**: Identifying any anomalies or outliers
-      that may indicate data quality issues or require special handling.
-2.  **Examining the distribution of the target variable**:
-    - **Understanding Target Variable Dynamics**: Gaining insights into
-      the nature of the variable you’re trying to predict, which can
-      influence model selection and interpretation of results.
-    - **Identifying Data Imbalances**: Detecting skewness or imbalances,
-      especially important in classification problems where class
-      imbalance can affect model performance.
-3.  **Taking a subset of the data to fit in RAM**:
-    - **Feasibility of Analysis**: Ensuring that your dataset is
-      manageable and can be processed with the available computational
-      resources.
-    - **Representativeness Check**: Making sure the subset is
-      representative of the entire dataset to avoid biased analyses.
-4.  **Exploring correlations between predictors and target variable**:
-    - **Identifying Key Predictors**: Pinpointing which variables have
-      the most significant relationships with the target variable,
-      guiding feature selection.
-    - **Informing Model Choice**: Understanding these relationships can
-      suggest appropriate modeling techniques or transformations needed.
-5.  **Exploring correlations between predictors**:
-    - **Detecting Multicollinearity**: Identifying correlations among
-      predictors to address multicollinearity, which can impact certain
-      types of models.
-    - **Guiding Feature Engineering**: Using insights from correlations
-      to create new features or modify existing ones to improve model
-      performance.
-
-Additional Outcomes:
-
-- **Ensuring Data Quality**: Detecting and addressing missing values,
-  errors, or inconsistencies in your data.
-- **Identifying Best Models**: The insights gained can guide the
-  selection of the most appropriate modeling techniques.
-- **Creating New Features**: Based on the relationships and patterns
-  identified, you can engineer new features to enhance the predictive
-  power of your models.
-- **Preparing for Data Preprocessing**: Decisions about scaling,
-  normalizing, or transforming data can be guided by the findings in the
-  EDA.
-- **Informing Data Strategy**: EDA outcomes can highlight areas where
-  additional data might be beneficial or where data collection
-  strategies might need adjustment.
-
-In summary, these EDA steps are integral to preparing your data for
-modeling and ensuring that your approach is grounded in a thorough
-understanding of the dataset’s characteristics and relationships. They
-provide a foundation for building effective, robust, and interpretable
-machine learning models.
+- Ensure data quality
+- Identify key predictors
+- Inform model choice
+- Detect multicollinearity
+- Guide feature engineering
+- Inform data collection strategy
 
 ## Setting the environment up
 
@@ -209,15 +153,15 @@ glimpse(TripsZoneDistribution)
 
     Rows: 65,445
     Columns: 7
-    $ start_borough      <chr> "Brooklyn", "Brooklyn", "Brooklyn", "Brooklyn", "Br…
-    $ start_zone         <chr> "Bedford", "Bushwick South", "Stuyvesant Heights", …
-    $ start_service_zone <chr> "Boro Zone", "Boro Zone", "Boro Zone", "Boro Zone",…
-    $ end_borough        <chr> "Brooklyn", "Brooklyn", "Brooklyn", "Brooklyn", "Ma…
-    $ end_zone           <chr> "Stuyvesant Heights", "Bushwick South", "Bensonhurs…
-    $ end_service_zone   <chr> "Boro Zone", "Boro Zone", "Boro Zone", "Boro Zone",…
-    $ n                  <int> 113907, 218849, 1053, 29645, 14637, 21992, 67243, 9…
+    $ start_borough      <chr> "Manhattan", "Manhattan", "Manhattan", "Manhattan",…
+    $ start_zone         <chr> "Murray Hill", "Upper East Side South", "Yorkville …
+    $ start_service_zone <chr> "Yellow Zone", "Yellow Zone", "Yellow Zone", "Yello…
+    $ end_borough        <chr> "Manhattan", "Manhattan", "Manhattan", "Manhattan",…
+    $ end_zone           <chr> "Midtown Center", "Midtown Center", "Sutton Place/T…
+    $ end_service_zone   <chr> "Yellow Zone", "Yellow Zone", "Yellow Zone", "Yello…
+    $ n                  <int> 65271, 87040, 18209, 34465, 17883, 11167, 16980, 21…
 
-## Exploring distribution of each individual variable
+## Distribution of variables available before arriving at the pick-up location
 
 ### Categorical variables
 
@@ -585,16 +529,6 @@ Based on the results, we can highlight the next points:
 
 ### Time variables
 
-In our data the columns `request_datetime`, `on_scene_datetime`,
-`pickup_datetime`, `dropoff_datetime` and `month` are time related and
-as taxi trips takes less than a day most of the columns well be highly
-correlated. To explore the data efficiently we will explore the
-distribution of `request_datetime`and then use columns to calculate the
-time required for each process described in the **SIPOC** diagram and
-explore each of them as numeric variables.
-
-#### Exploring the Customer Request distribution
-
 Let’s start confirming if `request_datetime` has any missing value.
 
 ``` r
@@ -811,132 +745,7 @@ RequestTimeSummary[year(request_month) == 2022,
 
 ![](README_files/figure-gfm/unnamed-chunk-27-1.png)
 
-#### Creating new features based of time columns
-
-After understanding the distribution of the `request_datetime` we are
-ready to create the variables:
-
-- `sec_to_location`: Number of seconds needed to for the taxi driver to
-  get in the customer’s extraction point.
-
-- `sec_to_start`: Numbers of seconds needed to start the trip after
-  getting in the starting point.
-
-- `sec_to_end`: Number of seconds needed to transform the customer after
-  starting the trip.
-
-``` r
-NycTripsProcessTime <-
-  NycTrips2022 |>
-  mutate(sec_to_location = 
-           difftime(on_scene_datetime, 
-                    request_datetime) |>
-           as.character() |>
-           as.double(),
-         sec_to_start =
-           difftime(pickup_datetime,
-                    on_scene_datetime) |>
-           as.character() |>
-           as.double(),
-         sec_to_end =
-           difftime(dropoff_datetime,
-                    pickup_datetime) |>
-           as.character() |>
-           as.double())
-```
-
-### Numerical variables
-
-#### Exploring the distribution of time related features
-
-Before exploring each distribution let’s count the number of missing
-values by column.
-
-``` r
-NycTrips2022 |>
-  summarize(missing_request_datetime = sum(is.na(request_datetime)),
-            missing_on_scene_datetime = sum(is.na(on_scene_datetime)),
-            missing_pickup_datetime = sum(is.na(pickup_datetime)),
-            missing_dropoff_datetime = sum(is.na(dropoff_datetime))) |>
-  collect() |>
-  as.data.table() |>
-  melt(measure.vars = patterns("^missing"),
-       value.name = "N") |>
-  (\(dt) dt[order(-N),
-            .(variable, N = comma(N))])()
-```
-
-                        variable          N
-                          <fctr>     <char>
-    1: missing_on_scene_datetime 58,497,294
-    2:  missing_request_datetime          0
-    3:   missing_pickup_datetime          0
-    4:  missing_dropoff_datetime          0
-
-- `sec_to_location`:
-
-``` r
-ToLocationDist <-
-  NycTripsProcessTime |>
-  compute_boxplot(sec_to_location) |>
-  collect() 
-
-ToLocationDist |>
-  ggplot(aes("sec_to_location", q2))+
-  geom_boxplot(
-    aes(ymin = lower_whisker, 
-        lower = q1, 
-        middle = q2, 
-        upper = q3, 
-        ymax = higher_whisker),
-    stat = "identity",
-    width = 0.3
-  )+
-  scale_y_continuous(breaks = breaks_width(100))+
-  theme_light()
-```
-
-![](README_files/figure-gfm/unnamed-chunk-30-1.png)
-
-- `sec_to_start`:
-
-``` r
-NycTripsProcessTime |>
-  count(missing_sec_to_start = is.na(sec_to_start)) |>
-  collect()
-```
-
-    # A tibble: 2 × 2
-      missing_sec_to_start         n
-      <lgl>                    <int>
-    1 FALSE                153918789
-    2 TRUE                  58497294
-
-- `sec_to_end` and `trip_time`:
-
-``` r
-NycTripsProcessTime |>
-  count(missing_sec_to_start = is.na(sec_to_start)) |>
-  collect()
-```
-
-    # A tibble: 2 × 2
-      missing_sec_to_start         n
-      <lgl>                    <int>
-    1 FALSE                153918789
-    2 TRUE                  58497294
-
-#### Exploring the distribution of time related features
-
-- `tips`:
-- `driver_pay`:
-
-### Variables to exclude
+### Numeric variables
 
 - `trip_miles`:
 - `base_passenger_fare`:
-- `tolls`:
-- `bcf`:
-- `sales_tax`:
-- `congestion_surcharge`:
-- `airport_fee`:
