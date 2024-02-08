@@ -391,8 +391,8 @@ amount of **tips** that drivers receive from customers.
 Based on *212,416,083* trips recorded 2022, drivers received
 *\$229,936,965* in tips which is only 5% of the total earnings for that
 year, for example if a driver improves his strategy to increase his tips
-to **20%** of his current earning he could be earning **\$1,361.28**
-extra monthly if he works 8 hours a day, 5 days each week and earns
+to **20%** of his current earning he could be earning **\$1,361.28 extra
+monthly** if he works 8 hours a day, 5 days each week and earns
 *\$42.54* hourly.
 
 ``` r
