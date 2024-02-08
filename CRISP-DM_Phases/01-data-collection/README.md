@@ -47,6 +47,8 @@ FileNames
     [15] "fhvhv_tripdata_2023-03.parquet" "fhvhv_tripdata_2023-04.parquet"
     [17] "fhvhv_tripdata_2023-05.parquet" "fhvhv_tripdata_2023-06.parquet"
     [19] "fhvhv_tripdata_2023-07.parquet" "fhvhv_tripdata_2023-08.parquet"
+    [21] "fhvhv_tripdata_2023-09.parquet" "fhvhv_tripdata_2023-10.parquet"
+    [23] "fhvhv_tripdata_2023-11.parquet"
 
 From the same page we also can find the link to download the codes
 related to each Zone.
@@ -125,6 +127,8 @@ MonthFoldersPath
     [15] "data/trip-data/year=2023/month=03" "data/trip-data/year=2023/month=04"
     [17] "data/trip-data/year=2023/month=05" "data/trip-data/year=2023/month=06"
     [19] "data/trip-data/year=2023/month=07" "data/trip-data/year=2023/month=08"
+    [21] "data/trip-data/year=2023/month=09" "data/trip-data/year=2023/month=10"
+    [23] "data/trip-data/year=2023/month=11"
 
 Finally, we just need to download each file on each folder.
 
@@ -157,8 +161,11 @@ the `data` folder.
 ``` r
 fs::dir_tree(here::here("data"))
 ```
-    data
+
+    C:/Users/anfeliz/Particular Projects/nyc-taxi-project/data
     ├── 01-source-page.png
+    ├── Base-Simulation.RData
+    ├── fhvhv_tripdata.csv
     ├── README.md
     ├── taxi_zone_lookup.csv
     └── trip-data
@@ -202,5 +209,11 @@ fs::dir_tree(here::here("data"))
             │   └── part-0.parquet
             ├── month=07
             │   └── part-0.parquet
-            └── month=08
+            ├── month=08
+            │   └── part-0.parquet
+            ├── month=09
+            │   └── part-0.parquet
+            ├── month=10
+            │   └── part-0.parquet
+            └── month=11
                 └── part-0.parquet
