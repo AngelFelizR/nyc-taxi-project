@@ -291,10 +291,18 @@ After simulating 30 days, we can use **bootstrap** to infer the distribution of 
 
 ```{r}
 SimulationHourlyWage <-
-  BaseLineSimulation[, .(`Hourly Wage` = (sum(s_driver_pay) + sum(s_tips))/unique(hours_to_work)),
+  BaseLineSimulation[, .(`Driver Pay` = sum(s_driver_pay),
+                         `Tips` = sum(s_tips),
+                         `Hours Worked` = 
+                           difftime(max(s_dropoff_datetime),
+                                    min(s_request_datetime),
+                                    units = "hours") |>
+                           as.double()),
                      by = "simulation_day"]
 
-head(SimulationHourlyWage)
+SimulationHourlyWage[, `Hourly Wage` := (`Driver Pay` + Tips) / `Hours Worked`]
+
+SimulationHourlyWage[order(-`Hourly Wage`)]
 ```
 
 2. Then we need to resample with replacement a new 30 days hourly wage 3,000 times and calculate the mean of each resample.
@@ -348,7 +356,7 @@ visualize(BootstrapHourlyWage)+
 
 As the base driver's pay increases with costs like gas, time and car's maintenance the best way to increase total earning is by increasing the amount of **tips** that drivers receive from customers.
 
-Based on *212,416,083* trips recorded 2022, drivers received *$229,936,965* in tips which is only 5% of the total earnings for that year, for example if a driver improves his strategy to increase his tips to **20%** of his current earning he could be earning **`r dollar(42.54*8*5*4*0.2)` extra monthly** if he works 8 hours a day, 5 days each week and earns *$42.54* hourly.
+Based on *212,416,083* trips recorded 2022, drivers received *$229,936,965* in tips which is only 5% of the total earnings for that year, for example if a driver improves his strategy to increase his tips to **20%** of his current earning he could be earning **`r dollar(41.69*8*5*4*0.2)` extra monthly** if he works 8 hours a day, 5 days each week and earns *$41.69* hourly.
 
 ```{r}
 # 2022 Earning Summary

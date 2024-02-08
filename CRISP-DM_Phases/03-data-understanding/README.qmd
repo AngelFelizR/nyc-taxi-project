@@ -676,7 +676,6 @@ NycTripsProcessTime |>
 
 #### Exploring the distribution of time related features
 
-
 - `tips`:
 - `driver_pay`:
 

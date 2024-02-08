@@ -296,20 +296,53 @@ following the next steps.
 
 ``` r
 SimulationHourlyWage <-
-  BaseLineSimulation[, .(`Hourly Wage` = (sum(s_driver_pay) + sum(s_tips))/unique(hours_to_work)),
+  BaseLineSimulation[, .(`Driver Pay` = sum(s_driver_pay),
+                         `Tips` = sum(s_tips),
+                         `Hours Worked` = 
+                           difftime(max(s_dropoff_datetime),
+                                    min(s_request_datetime),
+                                    units = "hours") |>
+                           as.double()),
                      by = "simulation_day"]
 
-head(SimulationHourlyWage)
+SimulationHourlyWage[, `Hourly Wage` := (`Driver Pay` + Tips) / `Hours Worked`]
+
+SimulationHourlyWage[order(-`Hourly Wage`)]
 ```
 
-       simulation_day Hourly Wage
-                <int>       <num>
-    1:              1    47.90083
-    2:              2    50.87636
-    3:              3    42.43750
-    4:              4    35.67900
-    5:              5    34.74833
-    6:              6    37.19000
+        simulation_day Driver Pay  Tips Hours Worked Hourly Wage
+                 <int>      <num> <num>        <num>       <num>
+     1:             27     561.86 48.95    10.459722    58.39639
+     2:             17     431.23 46.57     9.191667    51.98187
+     3:              2     541.88 17.76    10.981111    50.96388
+     4:              1     544.42 30.39    12.515833    45.92663
+     5:             10     352.58 22.78     8.190278    45.82995
+     6:              7     516.20 35.16    12.165000    45.32347
+     7:             28     537.79 11.14    12.305556    44.60831
+     8:             14     396.48 32.44     9.629444    44.54255
+     9:             24     504.33 36.87    12.199444    44.36268
+    10:             21     447.45  5.00    10.373889    43.61431
+    11:             23     501.49  4.00    11.646944    43.40108
+    12:              9     418.95  3.69     9.926667    42.57623
+    13:              3     319.96 19.54     7.982778    42.52906
+    14:             22     403.93 28.06    10.368056    41.66548
+    15:             15     367.57 38.04     9.916111    40.90414
+    16:             25     390.68 24.16    10.274722    40.37481
+    17:             19     386.10 21.64    10.123056    40.27835
+    18:              8     449.98 35.46    12.135000    40.00330
+    19:             11     369.39 26.23     9.952222    39.75193
+    20:             18     347.86 12.40     9.275000    38.84205
+    21:             20     289.18 28.93     8.205833    38.76632
+    22:             13     443.58 21.42    12.025000    38.66944
+    23:             26     362.86 27.25    10.330556    37.76273
+    24:             29     328.65  5.51     8.976389    37.22655
+    25:              6     359.90 12.00    10.002222    37.18174
+    26:             16     396.42 25.83    11.375556    37.11907
+    27:              4     352.79  4.00    10.151111    35.14788
+    28:             12     280.80  6.73     8.183611    35.13486
+    29:              5     391.17 25.81    12.001111    34.74512
+    30:             30     296.46  3.00     9.040278    33.12509
+        simulation_day Driver Pay  Tips Hours Worked Hourly Wage
 
 2.  Then we need to resample with replacement a new 30 days hourly wage
     3,000 times and calculate the mean of each resample.
@@ -329,16 +362,16 @@ BootstrapHourlyWage
     # A tibble: 3,000 × 2
        replicate  stat
            <int> <dbl>
-     1         1  43.8
-     2         2  40.6
-     3         3  42.3
-     4         4  44.8
-     5         5  41.2
-     6         6  41.7
-     7         7  42.0
-     8         8  44.0
-     9         9  42.2
-    10        10  41.3
+     1         1  42.9
+     2         2  39.9
+     3         3  41.6
+     4         4  43.7
+     5         5  40.5
+     6         6  40.8
+     7         7  41.1
+     8         8  42.9
+     9         9  41.3
+    10        10  40.5
     # ℹ 2,990 more rows
 
 3.  Compute the 95% confident interval.
@@ -355,7 +388,7 @@ BootstrapInterval
     # A tibble: 1 × 2
       lower_ci upper_ci
          <dbl>    <dbl>
-    1     40.6     44.7
+    1     39.9     43.7
 
 4.  Visualize the estimated distribution.
 
@@ -391,9 +424,9 @@ amount of **tips** that drivers receive from customers.
 Based on *212,416,083* trips recorded 2022, drivers received
 *\$229,936,965* in tips which is only 5% of the total earnings for that
 year, for example if a driver improves his strategy to increase his tips
-to **20%** of his current earning he could be earning **\$1,361.28 extra
+to **20%** of his current earning he could be earning **\$1,334.08 extra
 monthly** if he works 8 hours a day, 5 days each week and earns
-*\$42.54* hourly.
+*\$41.69* hourly.
 
 ``` r
 # 2022 Earning Summary

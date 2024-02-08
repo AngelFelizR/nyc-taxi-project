@@ -16,26 +16,79 @@ Exploratory Data Analysis (EDA) of 2022 High Volume For-Hire Vehicles
 
 After completing the [business
 understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding)
-step, we have a clear objective in mind and an initial description for
-each column the [raw
-data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data),
-we are ready to perform the *data understanding* by performing an EDA
-with the following steps:
+phase we are ready to perform the **data understanding** phase by
+performing an EDA with the following steps:
 
-1.  Examining the distribution of each individual variable
-2.  Defining the target variable and exploring its distribution
-3.  Taking a subset of the data to fit in RAM
-4.  Preparing the data for modeling
-5.  Defining the main characteristics of high paying trips
-6.  Defining high correlated features
+1.  Examining the distribution of variables available before arriving at
+    the pick-up location.
+2.  Examining the distribution of the target variable.
+3.  Taking a subset of the data to fit in RAM.
+4.  Exploring correlations between predictors and target variable.
+5.  Exploring correlations between predictors.
 
 After completing this process, we will have the following outcomes:
 
-- Confirming the meaning of each variable
-- Ensuring data quality by finding missing values and
-- Identifying the best models to train
-- Creating new features that can enhance the predictive power of the
-  machine learning model
+Performing the five steps you’ve outlined in your Exploratory Data
+Analysis (EDA) will provide several valuable outcomes. These steps are
+crucial for ensuring that your data is well-understood, of high quality,
+and prepared for effective modeling. Here’s a breakdown of the outcomes
+you can expect from each step, including your examples and additional
+insights:
+
+1.  **Examining the distribution of variables available before arriving
+    at the pick-up location**:
+    - **Insight into Variable Characteristics**: Understanding the
+      range, central tendencies, and dispersion of these variables.
+    - **Data Quality Checks**: Identifying any anomalies or outliers
+      that may indicate data quality issues or require special handling.
+2.  **Examining the distribution of the target variable**:
+    - **Understanding Target Variable Dynamics**: Gaining insights into
+      the nature of the variable you’re trying to predict, which can
+      influence model selection and interpretation of results.
+    - **Identifying Data Imbalances**: Detecting skewness or imbalances,
+      especially important in classification problems where class
+      imbalance can affect model performance.
+3.  **Taking a subset of the data to fit in RAM**:
+    - **Feasibility of Analysis**: Ensuring that your dataset is
+      manageable and can be processed with the available computational
+      resources.
+    - **Representativeness Check**: Making sure the subset is
+      representative of the entire dataset to avoid biased analyses.
+4.  **Exploring correlations between predictors and target variable**:
+    - **Identifying Key Predictors**: Pinpointing which variables have
+      the most significant relationships with the target variable,
+      guiding feature selection.
+    - **Informing Model Choice**: Understanding these relationships can
+      suggest appropriate modeling techniques or transformations needed.
+5.  **Exploring correlations between predictors**:
+    - **Detecting Multicollinearity**: Identifying correlations among
+      predictors to address multicollinearity, which can impact certain
+      types of models.
+    - **Guiding Feature Engineering**: Using insights from correlations
+      to create new features or modify existing ones to improve model
+      performance.
+
+Additional Outcomes:
+
+- **Ensuring Data Quality**: Detecting and addressing missing values,
+  errors, or inconsistencies in your data.
+- **Identifying Best Models**: The insights gained can guide the
+  selection of the most appropriate modeling techniques.
+- **Creating New Features**: Based on the relationships and patterns
+  identified, you can engineer new features to enhance the predictive
+  power of your models.
+- **Preparing for Data Preprocessing**: Decisions about scaling,
+  normalizing, or transforming data can be guided by the findings in the
+  EDA.
+- **Informing Data Strategy**: EDA outcomes can highlight areas where
+  additional data might be beneficial or where data collection
+  strategies might need adjustment.
+
+In summary, these EDA steps are integral to preparing your data for
+modeling and ensuring that your approach is grounded in a thorough
+understanding of the dataset’s characteristics and relationships. They
+provide a foundation for building effective, robust, and interpretable
+machine learning models.
 
 ## Setting the environment up
 
@@ -156,13 +209,13 @@ glimpse(TripsZoneDistribution)
 
     Rows: 65,445
     Columns: 7
-    $ start_borough      <chr> "Manhattan", "Manhattan", "Manhattan", "Manhattan",…
-    $ start_zone         <chr> "Murray Hill", "Upper East Side South", "Yorkville …
-    $ start_service_zone <chr> "Yellow Zone", "Yellow Zone", "Yellow Zone", "Yello…
-    $ end_borough        <chr> "Manhattan", "Manhattan", "Manhattan", "Manhattan",…
-    $ end_zone           <chr> "Midtown Center", "Midtown Center", "Sutton Place/T…
-    $ end_service_zone   <chr> "Yellow Zone", "Yellow Zone", "Yellow Zone", "Yello…
-    $ n                  <int> 65271, 87040, 18209, 34465, 17883, 11167, 16980, 21…
+    $ start_borough      <chr> "Brooklyn", "Brooklyn", "Brooklyn", "Brooklyn", "Br…
+    $ start_zone         <chr> "Bedford", "Bushwick South", "Stuyvesant Heights", …
+    $ start_service_zone <chr> "Boro Zone", "Boro Zone", "Boro Zone", "Boro Zone",…
+    $ end_borough        <chr> "Brooklyn", "Brooklyn", "Brooklyn", "Brooklyn", "Ma…
+    $ end_zone           <chr> "Stuyvesant Heights", "Bushwick South", "Bensonhurs…
+    $ end_service_zone   <chr> "Boro Zone", "Boro Zone", "Boro Zone", "Boro Zone",…
+    $ n                  <int> 113907, 218849, 1053, 29645, 14637, 21992, 67243, 9…
 
 ## Exploring distribution of each individual variable
 
@@ -199,6 +252,7 @@ NycTrips2022 |>
 ```
 
        company common n_unique_code n_missing         n    pct
+        <char> <lgcl>         <int>     <int>     <int>  <num>
     1:    Uber   TRUE             1         0 153732577 0.7237
     2:    Lyft   TRUE             1         0  58568773 0.2757
     3:    Uber  FALSE            27         0    114733 0.0005
@@ -541,6 +595,19 @@ explore each of them as numeric variables.
 
 #### Exploring the Customer Request distribution
 
+Let’s start confirming if `request_datetime` has any missing value.
+
+``` r
+NycTrips2022 |>
+  count(request_datetime_missing = is.na(request_datetime)) |>
+  collect()
+```
+
+    # A tibble: 1 × 2
+      request_datetime_missing         n
+      <lgl>                        <int>
+    1 FALSE                    212416083
+
 To describe this variable, we decomposed it in different parts and count
 the number trips by each element and store the summary as a `data.table`
 to explore each part using visualizations.
@@ -590,7 +657,7 @@ RequestTimeSummary[, .(n = sum(n)),
         legend.position = "top")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-21-1.png)
+![](README_files/figure-gfm/unnamed-chunk-22-1.png)
 
 In the next chart, we can see that the number trips keeps almost
 constant must of the year, but we have some fewer trips during the first
@@ -619,7 +686,7 @@ RequestTimeSummary[year(request_month) == 2022,
         legend.position = "top")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-22-1.png)
+![](README_files/figure-gfm/unnamed-chunk-23-1.png)
 
 By breaking the months into weeks we can confirm we have fewer trips in
 the first 2 months, in relation to October we don’t see a big change in
@@ -649,7 +716,7 @@ RequestTimeSummary[year(request_month) == 2022,
         legend.position = "top")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-23-1.png)
+![](README_files/figure-gfm/unnamed-chunk-24-1.png)
 
 If we explore the number of trips by month day we can not see any
 consistent pattern after plotting a line with total of trips for each
@@ -679,7 +746,7 @@ RequestTimeSummary[year(request_month) == 2022,
         plot.title = element_text(face = "bold"))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-24-1.png)
+![](README_files/figure-gfm/unnamed-chunk-25-1.png)
 
 By if we change the month day in the prior chart with week day we can
 find that the number of trips trends to be higher Fridays and Saturdays.
@@ -708,7 +775,7 @@ RequestTimeSummary[year(request_month) == 2022,
         plot.title = element_text(face = "bold"))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-25-1.png)
+![](README_files/figure-gfm/unnamed-chunk-26-1.png)
 
 To understand better what is happening Fridays and Saturdays let’s break
 each week day by hour. In the next chart, we can see how the higher
@@ -742,7 +809,7 @@ RequestTimeSummary[year(request_month) == 2022,
         axis.text = element_text(color = "black"))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-26-1.png)
+![](README_files/figure-gfm/unnamed-chunk-27-1.png)
 
 #### Creating new features based of time columns
 
@@ -782,11 +849,82 @@ NycTripsProcessTime <-
 
 #### Exploring the distribution of time related features
 
+Before exploring each distribution let’s count the number of missing
+values by column.
+
+``` r
+NycTrips2022 |>
+  summarize(missing_request_datetime = sum(is.na(request_datetime)),
+            missing_on_scene_datetime = sum(is.na(on_scene_datetime)),
+            missing_pickup_datetime = sum(is.na(pickup_datetime)),
+            missing_dropoff_datetime = sum(is.na(dropoff_datetime))) |>
+  collect() |>
+  as.data.table() |>
+  melt(measure.vars = patterns("^missing"),
+       value.name = "N") |>
+  (\(dt) dt[order(-N),
+            .(variable, N = comma(N))])()
+```
+
+                        variable          N
+                          <fctr>     <char>
+    1: missing_on_scene_datetime 58,497,294
+    2:  missing_request_datetime          0
+    3:   missing_pickup_datetime          0
+    4:  missing_dropoff_datetime          0
+
 - `sec_to_location`:
+
+``` r
+ToLocationDist <-
+  NycTripsProcessTime |>
+  compute_boxplot(sec_to_location) |>
+  collect() 
+
+ToLocationDist |>
+  ggplot(aes("sec_to_location", q2))+
+  geom_boxplot(
+    aes(ymin = lower_whisker, 
+        lower = q1, 
+        middle = q2, 
+        upper = q3, 
+        ymax = higher_whisker),
+    stat = "identity",
+    width = 0.3
+  )+
+  scale_y_continuous(breaks = breaks_width(100))+
+  theme_light()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-30-1.png)
 
 - `sec_to_start`:
 
+``` r
+NycTripsProcessTime |>
+  count(missing_sec_to_start = is.na(sec_to_start)) |>
+  collect()
+```
+
+    # A tibble: 2 × 2
+      missing_sec_to_start         n
+      <lgl>                    <int>
+    1 FALSE                153918789
+    2 TRUE                  58497294
+
 - `sec_to_end` and `trip_time`:
+
+``` r
+NycTripsProcessTime |>
+  count(missing_sec_to_start = is.na(sec_to_start)) |>
+  collect()
+```
+
+    # A tibble: 2 × 2
+      missing_sec_to_start         n
+      <lgl>                    <int>
+    1 FALSE                153918789
+    2 TRUE                  58497294
 
 #### Exploring the distribution of time related features
 
