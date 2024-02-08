@@ -9,15 +9,13 @@ execute:
   warning: false
 ---
 
-After completing the [business understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding) step, we have a clear objective in mind and an initial description for each column the [raw data](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/data), we are ready to perform the *data understanding* by performing an EDA with the following steps:
+After completing the [business understanding](https://github.com/AngelFelizR/nyc-taxi-project/tree/master/notebooks/02-business-understanding) phase we are ready to perform the **data understanding** phase by performing an EDA with the following steps:
 
 1. Examining the distribution of variables available before arriving at the pick-up location.
 2. Examining the distribution of the target variable.
 3. Taking a subset of the data to fit in RAM.
 4. Exploring correlations between predictors and target variable.
 5. Exploring correlations between predictors.
-
-
 
 After completing this process, we will have the following outcomes:
 

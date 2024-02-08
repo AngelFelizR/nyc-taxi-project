@@ -172,7 +172,7 @@ dollars by minute to *minimize the time needed to make more money* and
 increasing in consequence the expected **hourly wage** in the long term.
 
 $$
-\text{profit_rate} = \frac{\text{driver_pay} + \text{tips}}{(\text{dropoff_datetime}-\text{request_datetime})/60}
+\text{profit_rate} = \frac{\text{driver}\_\text{pay} + \text{tips}}{(\text{dropoff}\_\text{datetime}-\text{request}\_\text{datetime})/60}
 $$
 
 ### Defining Metric’s Base Line
@@ -193,6 +193,7 @@ library(data.table)
 library(lubridate)
 library(dplyr)
 library(arrow)
+library(infer)
 source(here("R/01-custom-functions.R"))
 
 # Loading valid zones
@@ -287,43 +288,99 @@ BaseLineSimulation <-
   ][RandomStartPoint, on = "simulation_day"]
 ```
 
-Once we have the simulation, we can say with 95% confident that the
-**Hourly Wage Mean** is between 34.34 and 55.29 dollars, with **42.54**
-as our best approximation.
+After simulating 30 days, we can use **bootstrap** to infer the
+distribution of the mean **Hourly Wage** for any day in the year by
+following the next steps.
+
+1.  Calculate the *Hourly Wage* for each simulated day.
 
 ``` r
 SimulationHourlyWage <-
-  BaseLineSimulation[, .(`Hourly Wage` = (sum(s_driver_pay) + sum(s_tips))/mean(hours_to_work)),
-                     by = "simulation_day"] 
+  BaseLineSimulation[, .(`Hourly Wage` = (sum(s_driver_pay) + sum(s_tips))/unique(hours_to_work)),
+                     by = "simulation_day"]
 
-Interval <- 
-  quantile(SimulationHourlyWage$`Hourly Wage`, c(0.025, 0.975)) |>
-  round(2)
+head(SimulationHourlyWage)
+```
 
-ggplot(SimulationHourlyWage)+
-  geom_histogram(aes(`Hourly Wage`),
-                 fill = "blue2",
-                 binwidth = 4,
-                 alpha = 0.80)+
-  geom_vline(xintercept = Interval,
-             linewidth = 0.8)+
+       simulation_day Hourly Wage
+                <int>       <num>
+    1:              1    47.90083
+    2:              2    50.87636
+    3:              3    42.43750
+    4:              4    35.67900
+    5:              5    34.74833
+    6:              6    37.19000
+
+2.  Then we need to resample with replacement a new 30 days hourly wage
+    3,000 times and calculate the mean of each resample.
+
+``` r
+set.seed(1586)
+BootstrapHourlyWage <-
+  specify(SimulationHourlyWage,
+          `Hourly Wage` ~ NULL) |>
+  generate(reps = 3000, type = "bootstrap") |>
+  calculate(stat = "mean")
+
+BootstrapHourlyWage
+```
+
+    Response: Hourly Wage (numeric)
+    # A tibble: 3,000 × 2
+       replicate  stat
+           <int> <dbl>
+     1         1  43.8
+     2         2  40.6
+     3         3  42.3
+     4         4  44.8
+     5         5  41.2
+     6         6  41.7
+     7         7  42.0
+     8         8  44.0
+     9         9  42.2
+    10        10  41.3
+    # ℹ 2,990 more rows
+
+3.  Compute the 95% confident interval.
+
+``` r
+BootstrapInterval <- 
+  get_ci(BootstrapHourlyWage, 
+         level = 0.95,
+         type = "percentile")
+
+BootstrapInterval
+```
+
+    # A tibble: 1 × 2
+      lower_ci upper_ci
+         <dbl>    <dbl>
+    1     40.6     44.7
+
+4.  Visualize the estimated distribution.
+
+``` r
+visualize(BootstrapHourlyWage)+
+  shade_ci(endpoints = BootstrapInterval,
+           color = "#2c77BF",
+           fill = "#2c77BF")+
   annotate(geom = "text",
-           y = 7,
-           x = c(Interval[1L] - 1.5,
-                 Interval[2L] + 1.5),
-           label = as.character(Interval))+
-  scale_y_continuous(breaks = breaks_width(2, offset = 1))+
-  labs(title = "Hourly Wage Distribution",
+           y = 400,
+           x = c(BootstrapInterval[1L][[1L]] - 0.4,
+                 BootstrapInterval[2L][[1L]] + 0.4),
+           label = unlist(BootstrapInterval) |> comma(accuracy = 0.01))+
+  labs(title = "Mean Hourly Wage Distribution",
        subtitle = paste0("Mean: ", round(mean(SimulationHourlyWage$`Hourly Wage`), 2),
                          ", Median: ", round(median(SimulationHourlyWage$`Hourly Wage`), 2)),
        y = "Count")+
   theme_light()+
   theme(panel.grid.minor.y = element_blank(),
         panel.grid.major.y = element_blank(),
-        plot.title = element_text(face = "bold"))
+        plot.title = element_text(face = "bold"),
+        axis.title.x = element_blank())
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-8-1.png)
+![](README_files/figure-gfm/unnamed-chunk-11-1.png)
 
 ## Business Case
 
@@ -363,6 +420,7 @@ NycTrips |>
 ```
 
           Summary Variable          Total
+                    <char>         <char>
     1:     number_of_trips    212,416,083
     2:     trips_with_tips     42,358,143
     3: trips_with_tips_pct            20%
